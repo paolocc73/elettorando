@@ -11,7 +11,7 @@ upload.sh (lftp)
 [ Server Remoto ] ➔ esegue ➔ [ index.php ] (Dashboard Frontend)
 
 
-1. **Codice di Elaborazione (`elaboratore_2.py`)**
+1. **Codice di Elaborazione (`elaboratore.py`)**
    * Script in Python eseguito in ambiente virtuale (`venv`) su macchina locale.
    * Calcola le stime analitiche e l'attendibilità statistica logistica.
    * Esporta ciclicamente il file live `dati_dashboard.json` e archivia i progressivi storici con timestamp nella cartella locale `storico/`.
