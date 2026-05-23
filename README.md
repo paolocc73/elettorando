@@ -1,4 +1,6 @@
-le elezioni comunali di Venezia (24-25 Maggio 2026). Il modello elabora lo *swing* basandosi sullo storico elettorale e sul flusso parziale delle sezioni pervenute.
+# Elettorando 2026 🗳️
+
+Sistema di scrutinio predittivo e proiezione statistica in tempo reale per le elezioni comunali di Venezia (24-25 Maggio 2026). Il modello elabora lo *swing* basandosi sullo storico elettorale e sul flusso parziale delle sezioni pervenute.
 
 ## 🛠️ Architettura del Progetto
 
