@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Room Elettorale - Sindaco di Venezia 2026</title>
+    <!-- Tailwind CSS per un design moderno, pulito ed elegante -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Google Fonts Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+
+    <!-- TOP APP BAR -->
+    <header class="bg-white shadow-xs border-b border-slate-200 sticky top-0 z-50 px-4 py-3.5 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <button class="p-2 hover:bg-slate-100 rounded-full transition cursor-pointer" onclick="toggleMenu()">
+                <span class="material-icons-round text-slate-600">menu</span>
+            </button>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">
+                    Elettorando <span class="text-indigo-600">2026</span>
+                </h1>
+                <p class="text-xs text-slate-500 font-medium tracking-wide uppercase">Elezione del Sindaco di Venezia • Live Spoglio</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-slate-600 bg-slate-100 px-3.5 py-1.5 rounded-full font-medium">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Motore live connesso
+        </div>
+    </header>
+
+    <!-- ARCHIVIO SIDEBAR (NAVIGATION DRAWER) -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out z-50 border-r border-slate-200 pt-24">
+        <div class="px-5 mb-4 flex justify-between items-center">
+            <h2 class="font-bold text-lg text-slate-800 tracking-tight">Archivio Storico Previsioni</h2>
+            <button onclick="toggleMenu()" class="p-1 hover:bg-slate-100 rounded-full cursor-pointer"><span class="material-icons-round text-slate-500">close</span></button>
+        </div>
+        <nav class="space-y-1.5 px-3">
+            <a href="#" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm">
+                <span class="flex items-center gap-2"><span class="material-icons-round text-base">analytics</span>Previsione Attuale</span>
+                <span class="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Live</span>
+            </a>
+            <div class="h-px bg-slate-100 my-2 mx-2"></div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase px-3 tracking-wider">Spoglio Lunedì 25 Maggio</p>
+            <a href="#" class="flex items-center justify-between p-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+                <span>Snapshot #3 (Ore 17:00)</span>
+                <span class="text-xs text-slate-400">Scrutinio 15%</span>
+            </a>
+            <a href="#" class="flex items-center justify-between p-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+                <span>Snapshot #2 (Ore 16:15)</span>
+                <span class="text-xs text-slate-400">Scrutinio 8%</span>
+            </a>
+            <a href="#" class="flex items-center justify-between p-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition">
+                <span>Snapshot #1 (Ore 15:30)</span>
+                <span class="text-xs text-slate-400">Scrutinio 4%</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+
+        <!-- BANNER STATO ELEZIONI E ATTENDIBILITÀ -->
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="space-y-1.5">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md inline-block">Proiezione Algoritmica</div>
+                <div class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <span class="material-icons-round text-slate-400">calendar_today</span>
+                    Lunedì 25 Maggio 2026 — Ore 18:10
+                </div>
+                <p class="text-sm text-slate-500">Stima basata sul flusso delle prime 10 sezioni reali pervenute.</p>
+            </div>
+            
+            <!-- Barra Attendibilità Statistica -->
+            <div class="w-full md:w-64 space-y-2">
+                <div class="flex justify-between text-sm font-semibold">
+                    <span class="text-slate-600">Attendibilità Modello</span>
+                    <span class="text-indigo-600 font-bold">42%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5">
+                    <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: 42%"></div>
+                </div>
+                <p class="text-[11px] text-slate-400">In crescita con l'aumento delle sezioni coperte.</p>
+            </div>
+
+            <!-- Box Scenario Sintetico -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3.5 md:w-64">
+                <span class="material-icons-round text-amber-500 text-3xl">hourglass_empty</span>
+                <div>
+                    <div class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Esito Più Probabile</div>
+                    <div class="text-base font-bold text-slate-800">Ballottaggio Sicuro</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IL BOX DELLA "CALL" (ATTIVATO AUTOMATICAMENTE DA PYTHON) -->
+        <!-- Rimuovere la classe 'hidden' per renderlo visibile quando scatta la certezza matematica del sistema -->
+        <div class="bg-linear-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-md p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse hidden">
+            <div class="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
+                <span class="material-icons-round text-4xl bg-white/20 p-2 rounded-full">campaign</span>
+                <div>
+                    <h3 class="text-xl font-black tracking-tight uppercase">PROJECTED WINNER (CALL)</h3>
+                    <p class="text-sm opacity-90 font-medium">L'intervallo di confidenza statistica ha isolato l'esito finale escludendo scenari alternativi.</p>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-xl font-black bg-white text-red-700 px-5 py-2.5 rounded-xl shadow-xs uppercase tracking-wider">
+                    BALLOTTAGGIO CERTO
+                </div>
+            </div>
+        </div>
+
+        <!-- SEZIONE GRAFICI DI SFONDAMENTO SOGLIA PRINCIPALE (PRIME DUE FORZE) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Widget Sfidante Centrosinistra -->
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 space-y-4">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Andrea Martella</h4>
+                        <div class="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-md inline-block mt-1">Centrosinistra</div>
+                    </div>
+                    <div class="text-4xl font-black text-slate-800 tracking-tight">49.10%</div>
+                </div>
+                <div class="relative pt-3">
+                    <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden">
+                        <div class="bg-red-500 h-4 rounded-full transition-all duration-500" style="width: 49.1%"></div>
+                    </div>
+                    <!-- Indicatore Soglia 50% -->
+                    <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-slate-400 border-dashed border-l" title="Soglia Vittoria Primo Turno (50%)"></div>
+                </div>
+                <div class="flex justify-between text-xs text-slate-500 font-medium">
+                    <span>Soglia 1° Turno (50%)</span>
+                    <span class="text-red-600 font-bold">-0.90% per chiudere subito</span>
+                </div>
+            </div>
+
+            <!-- Widget Candidato Centrodestra -->
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 space-y-4">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Simone Venturini</h4>
+                        <div class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md inline-block mt-1">Centrodestra</div>
+                    </div>
+                    <div class="text-4xl font-black text-slate-800 tracking-tight">42.63%</div>
+                </div>
+                <div class="relative pt-3">
+                    <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden">
+                        <div class="bg-blue-500 h-4 rounded-full transition-all duration-500" style="width: 42.63%"></div>
+                    </div>
+                    <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-slate-400 border-dashed border-l"></div>
+                </div>
+                <div class="flex justify-between text-xs text-slate-500 font-medium">
+                    <span>Soglia 1° Turno (50%)</span>
+                    <span class="text-blue-600 font-bold">Accesso al ballottaggio stabile</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABELLA DETTAGLIATA MULTI-CANDIDATO -->
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4.5 border-b border-slate-100 bg-slate-50/70 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 tracking-tight">Quadro Analitico su base Comunale (8 Candidati)</h3>
+                <span class="text-xs font-semibold text-slate-500">Totale proiettato minori: <b class="text-indigo-600 font-bold">8.27%</b></span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/40 border-b border-slate-100">
+                            <th class="p-4 pl-6">Candidato Sindaco</th>
+                            <th class="p-4 text-right">Stima Proiettata</th>
+                            <th class="p-4 text-right pr-6">Swing Live (vs Storico)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm font-medium">
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="p-4 pl-6 font-bold text-slate-900">Andrea Martella (Centrosinistra)</td>
+                            <td class="p-4 text-right font-black text-slate-900 text-base">49.10%</td>
+                            <td class="p-4 text-right pr-6 text-red-500 text-xs font-bold">-1.43%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="p-4 pl-6 font-bold text-slate-900">Simone Venturini (Centrodestra)</td>
+                            <td class="p-4 text-right font-black text-slate-900 text-base">42.63%</td>
+                            <td class="p-4 text-right pr-6 text-red-500 text-xs font-bold">-1.20%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition text-slate-600">
+                            <td class="p-4 pl-6">Candidato Minore 1</td>
+                            <td class="p-4 text-right text-slate-900 font-semibold">3.82%</td>
+                            <td class="p-4 text-right pr-6 text-emerald-500 text-xs font-bold">+1.62%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition text-slate-600">
+                            <td class="p-4 pl-6">Candidato Minore 2</td>
+                            <td class="p-4 text-right text-slate-900 font-semibold">2.23%</td>
+                            <td class="p-4 text-right pr-6 text-emerald-500 text-xs font-bold">+0.66%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition text-slate-600">
+                            <td class="p-4 pl-6">Candidato Minore 3</td>
+                            <td class="p-4 text-right text-slate-900 font-semibold">1.20%</td>
+                            <td class="p-4 text-right pr-6 text-emerald-500 text-xs font-bold">+0.31%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition text-slate-600">
+                            <td class="p-4 pl-6">Candidato Minore 4</td>
+                            <td class="p-4 text-right text-slate-900 font-semibold">0.57%</td>
+                            <td class="p-4 text-right pr-6 text-emerald-500 text-xs font-bold">+0.09%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition text-slate-600">
+                            <td class="p-4 pl-6">Candidato Minore 5</td>
+                            <td class="p-4 text-right text-slate-900 font-semibold">0.27%</td>
+                            <td class="p-4 text-right pr-6 text-slate-400 text-xs">= 0.00%</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50 transition text-slate-600">
+                            <td class="p-4 pl-6">Candidato Minore 6</td>
+                            <td class="p-4 text-right text-slate-900 font-semibold">0.18%</td>
+                            <td class="p-4 text-right pr-6 text-slate-400 text-xs">= 0.00%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- DOCUMENTAZIONE TECNICA IN MODALITÀ DIVULGATIVA -->
+        <section class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 md:p-8 space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <span class="material-icons-round text-indigo-600 text-2xl">menu_book</span>
+                    <h3 class="text-lg font-bold text-slate-800 tracking-tight">Nota di Documentazione Tecnica</h3>
+                </div>
+                <!-- Riferimento Fonte Dati Richiesto -->
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg">
+                    <span class="material-icons-round text-sm text-indigo-500">cloud_download</span>
+                    Fonte dati scrutinio grezzo: <a href="https://elezioni.comune.venezia.it" target="_blank" class="text-indigo-600 hover:underline ml-0.5">elezioni.comune.venezia.it</a>
+                </div>
+            </div>
+            
+            <p class="text-sm text-slate-600 leading-relaxed">
+                Questo portale applica modelli statistici di inferenza geopolitica ed estrapolazione dello <i>swing</i> per interpretare lo scrutinio in tempo reale delle elezioni comunali di Venezia del <b>24-25 maggio 2026</b>. L'obiettivo è superare la distorsione ottica dei primi dati parziali affluiti, offrendo una proiezione stabilizzata del risultato finale cittadino.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm">
+                        <span class="material-icons-round text-base">layers</span>
+                        Ponderazione Territoriale
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Le sezioni del Comune di Venezia hanno comportamenti storici profondamente disomogenei (Centro Storico, Isole, Mestre, Marghera). L'algoritmo pesa ogni sezione non in base all'ordine di arrivo, ma sul suo reale <b>peso demografico ed elettorale storico</b> (calcolato integrando i dati delle comunali precedenti).
+                    </p>
+                </div>
+
+                <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm">
+                        <span class="material-icons-round text-base">trending_up</span>
+                        Estrapolazione dello Swing
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Quando una sezione campione trasmette i dati reali dal portale del Comune, il motore isola lo scostamento percentuale rispetto al passato (lo <i>swing</i>). Questo scostamento viene applicato come un "vento correttivo" sulle sezioni non ancora pervenute, intercettando subito i flussi verso gli 8 candidati.
+                    </p>
+                </div>
+
+                <div class="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm">
+                        <span class="material-icons-round text-base">verified</span>
+                        Algoritmo di "Call"
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Il sistema attiva la dichiarazione flash (Call) solo quando si combinano due fattori: il superamento del 25% dello scrutinio totale e un'oscillazione minima della varianza dello swing. Se la "forchetta d'errore" del primo candidato non tocca più la linea del 50%, lo scenario viene matematicamente blindato.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER (COPYLEFT) -->
+    <footer class="max-w-5xl mx-auto px-4 md:px-8 pb-12 text-center text-xs text-slate-400 font-medium space-y-1">
+        <p>Copyleft 2026 pcc soft • Tutti i diritti di riproduzione e modifica sono liberi.</p>
+        <p class="opacity-75">Sviluppato per l'analisi statistica in tempo reale del voto veneziano.</p>
+    </footer>
+
+    <!-- INTERAZIONE LOGICA MENU SIDEBAR -->
+    <script>
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+    </script>
+</body>
+</html>
