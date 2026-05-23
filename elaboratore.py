@@ -185,11 +185,21 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
     dati["stime_finali"] = sorted(dati["stime_finali"], key=lambda x: x["percentuale_stata"], reverse=True)
     
     try:
+        # 1. Scrittura del file principale per la dashboard live
         with open(file_output, 'w', encoding='utf-8') as f:
             json.dump(dati, f, indent=4, ensure_ascii=False)
-        print(f"✅ Dashboard aggiornata con successo in '{file_output}' (Attendibilità: {attendibilita_modello}%).")
+        
+        # 2. STORICIZZAZIONE: Crea una copia numerata/temporale nella cartella 'storico'
+        os.makedirs("storico", exist_ok=True)
+        timestamp_file = time.strftime("%H%M%S") # Es: 154230 (ore, minuti, secondi)
+        file_storico = f"storico/snapshot_{timestamp_file}.json"
+        
+        with open(file_storico, 'w', encoding='utf-8') as f:
+            json.dump(dati, f, indent=4, ensure_ascii=False)
+            
+        print(f"✅ Dashboard aggiornata ({attendibilita_modello}%). Snapshot storicizzato in '{file_storico}'.")
     except Exception as e:
-        print(f"⚠️ Errore durante la scrittura del file dashboard: {e}")
+        print(f"⚠️ Errore durante la scrittura dei file JSON: {e}")
         
 # ==========================================
 # 3. MOTORE DI CALCOLO E PROIEZIONE VARIABILE

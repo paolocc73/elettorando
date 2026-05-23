@@ -10,11 +10,13 @@ LOCAL_FILE="dati_dashboard.json"
 echo "🔄 Avvio trasferimento in background..."
 
 # Comando LFTP che gestisce la connessione e l'upload sicuro
+# ... (tua configurazione iniziale HOST, USER, PASS) ...
+
 lftp -c "
 open -u $USER,$PASS $HOST
-set ftp:ssl-allow no # Cambia in 'yes' se il tuo FTP richiede FTPS esplicito
 cd $REMOTE_DIR
 put $LOCAL_FILE
+mirror -R storico storico 
 bye
 "
 

@@ -33,21 +33,57 @@
             <button onclick="toggleMenu()" class="p-1 hover:bg-slate-100 rounded-full cursor-pointer"><span class="material-icons-round">close</span></button>
         </div>
         <nav class="space-y-1.5 px-3">
-            <a href="#" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm">
+            <a href="index.php" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm">
                 <span class="flex items-center gap-2"><span class="material-icons-round text-base">analytics</span>Previsione Attuale</span>
                 <span class="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Live</span>
             </a>
-            <!-- Le vecchie versioni possono essere salvate come file statici snapshot_1.json, snapshot_2.json e caricate al click -->
+            
+            <!-- PHP SCRUTA LA CARTELLA STORICO E GENERA I LINK DINAMICAMENTE -->
+            <?php
+            $dir = 'storico/';
+            if (is_dir($dir)) {
+                $files = glob($dir . 'snapshot_*.json');
+                rsort($files); // Mostra i più recenti in alto
+                
+                foreach ($files as $file) {
+                    // Estrae l'orario dal nome del file per renderlo leggibile (es: snapshot_163012.json -> 16:30:12)
+                    preg_match('/snapshot_(\d{2})(\d{2})(\d{2})\.json/', $file, $matches);
+                    if ($matches) {
+                        $ora_formattata = "Proiezione delle {$matches[1]}:{$matches[2]}:{$matches[3]}";
+                        $nome_file_pulito = basename($file);
+                        
+                        echo "<a href='#' onclick=\"caricaSnapshotStorico('$nome_file_pulito'); toggleMenu(); return false;\" class='flex items-center gap-2 p-3 text-sm rounded-xl text-slate-600 hover:bg-slate-50 transition border border-transparent hover:border-slate-100'>";
+                        echo "<span class='material-icons-round text-slate-400 text-base'>history</span> $ora_formattata";
+                        echo "</a>";
+                    }
+                }
+            }
+            ?>
         </nav>
     </div>
 
     <!-- MAIN CONTAINER -->
-    <main class="max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-5xl mx-auto p-4 md:p-8 space-y-8 relative">
+
+        <!-- SCHERMATA DI ATTESA SOGLIA MINIMA SEZIONI -->
+        <div id="blocco-sezioni" class="hidden bg-slate-50/95 backdrop-blur-xs absolute inset-0 z-40 flex flex-col items-center justify-center text-center p-6 min-h-[60vh]">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-md space-y-4">
+                <span class="material-icons-round text-5xl text-indigo-500 animate-spin">hourglass_top</span>
+                <h3 class="text-xl font-bold text-slate-900">Dati insufficienti per la proiezione</h3>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Il modello statistico richiede l'afflusso di almeno <b>5 sezioni scrutinate</b> per elaborare la prima proiezione affidabile dello swing comunale.
+                </p>
+                <div class="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 inline-block" id="conteggio-attesa">
+                    Sezioni attuali: 0 / 5
+                </div>
+            </div>
+        </div>
 
         <!-- BANNER STATO ELEZIONI E ATTENDIBILITÀ -->
         <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div class="space-y-1.5">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 append-2 py-1 rounded-md inline-block">Proiezione Algoritmica</div>
+                <div class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md inline-block">Proiezione Algoritmica</div>
                 <div class="text-lg font-bold text-slate-800 flex items-center gap-2" id="aggiornamento">
                     <span class="material-icons-round text-slate-400">calendar_today</span>
                     In attesa di dati...
@@ -183,94 +219,172 @@
 
     <!-- INTERAZIONE LOGICA LIVE DINAMICA (AJAX FETCH) -->
     <script>
-        function toggleMenu() {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
-        }
+let intervalloPolling; // Variabile globale per gestire il timer del live
 
+function toggleMenu() {
+    document.getElementById('sidebar').classList.toggle('-translate-x-full');
+}
+
+// ========================================================
+// 1. FUNZIONE CORE: AGGIORNA GLI ELEMENTI GRAFICI SULLA PAGINA
+// ========================================================
+function aggiornaInterfacciaGrafica(dati) {
+    if (!dati || !dati.scrutinio || !dati.stime_finali) {
+        console.error("Struttura dati JSON non valida.");
+        return;
+    }
+
+    const sezioni = dati.scrutinio.sezioni_pervenute;
+    const bloccoSezioni = document.getElementById('blocco-sezioni');
+    const conteggioAttesa = document.getElementById('conteggio-attesa');
+
+    // CONTROLLO SOGLIA MINIMA: 5 SEZIONI
+    if (sezioni < 5) {
+        // 1. Mostra la schermata di attesa blocca-interfaccia
+        if (bloccoSezioni) bloccoSezioni.classList.remove('hidden');
+        if (conteggioAttesa) conteggioAttesa.innerText = `Sezioni pervenute attualmente: ${sezioni} / 5`;
+
+        // 2. Aggiorna comunque le informazioni minime nella barra in alto per far capire che il sistema è vivo
+        document.getElementById('aggiornamento').innerHTML = `<span class="material-icons-round text-slate-400">calendar_today</span> Lunedì 25 Maggio 2026 — ${dati.ultimo_aggiornamento}`;
+        document.getElementById('sottotitolo-sezioni').innerText = `Flusso parziale insufficiente (${sezioni} sezioni ricevute).`;
+        document.getElementById('attendibilita-valore').innerText = "0.0%";
+        document.getElementById('attendibilita-barra').style.width = "0%";
+        document.getElementById('scenario-testo').innerText = "In attesa di quorum...";
+        return; // Interrompe l'aggiornamento dei grafici sottostanti
+    } else {
+        // Se le sezioni sono >= 5, nasconde l'overlay e procede normalmente
+        if (bloccoSezioni) bloccoSezioni.classList.add('hidden');
+    }
+
+    // A. Aggiorna Informazioni di Stato...
+    document.getElementById('aggiornamento').innerHTML = `<span class="material-icons-round text-slate-400">calendar_today</span> Lunedì 25 Maggio 2026 — ${dati.ultimo_aggiornamento}`;
+    document.getElementById('sottotitolo-sezioni').innerText = `Stima basata sul flusso di ${dati.scrutinio.sezioni_pervenute} sezioni su ${dati.scrutinio.totale_sezioni} (${dati.scrutinio.percentuale_completamento}%).`;
+    
+    // B. Legge l'attendibilità statistica logistica
+    const attendibilita = dati.scrutinio.attendibilita_statistica;
+    document.getElementById('attendibilita-valore').innerText = attendibilita.toFixed(1) + "%";
+    
+    // Forziamo il rendering della transizione CSS con un mini-timeout
+    setTimeout(() => {
+        document.getElementById('attendibilita-barra').style.width = attendibilita + "%";
+    }, 50);
+    
+    // C. Determina lo scenario testuale basandosi sulla vera attendibilità del modello
+    let scenarioTesto = "In attesa di dati...";
+    if (attendibilita > 0) {
+        if (attendibilita < 25) scenarioTesto = "Primi dati (Instabile)";
+        else if (attendibilita < 55) scenarioTesto = "Consolidamento proiezioni: media attendibilità";
+        else if (attendibilita < 75) scenarioTesto = "Buona attendibilità";
+        else scenarioTesto = "Modello altamente stabile";
+    }
+    document.getElementById('scenario-testo').innerText = scenarioTesto;
+
+    // D. Gestione Logica della "CALL"
+    const boxCall = document.getElementById('box-call');
+    const primo = dati.stime_finali[0];
+    const secondo = dati.stime_finali[1];
+    
+    if (attendibilita >= 15.0 && primo && secondo && (primo.percentuale_stata >= 50.0 || (primo.percentuale_stata - secondo.percentuale_stata) > 8.0)) {
+        document.getElementById('testo-call').innerText = primo.candidato + " PROIETTATO VINCENTE";
+        boxCall.classList.remove('hidden');
+    } else {
+        boxCall.classList.add('hidden');
+    }
+
+    // E. Aggiorna i due candidati principali (Case-Insensitive per evitare bug di battitura)
+    const martella = dati.stime_finali.find(c => c.candidato.toLowerCase().includes("martella")) || { percentuale_stata: 0 };
+    const venturini = dati.stime_finali.find(c => c.candidato.toLowerCase().includes("venturini")) || { percentuale_stata: 0 };
+
+    document.getElementById('martella-perc').innerText = martella.percentuale_stata.toFixed(2) + "%";
+    document.getElementById('venturini-perc').innerText = venturini.percentuale_stata.toFixed(2) + "%";
+    
+    setTimeout(() => {
+        document.getElementById('martella-barra').style.width = Math.min(martella.percentuale_stata, 100) + "%";
+        document.getElementById('venturini-barra').style.width = Math.min(venturini.percentuale_stata, 100) + "%";
+    }, 50);
+
+    document.getElementById('martella-notifica').innerText = martella.percentuale_stata >= 50 ? "Vittoria al primo turno proiettata" : `${(50 - martella.percentuale_stata).toFixed(2)}% per evitare il ballottaggio`;
+    document.getElementById('venturini-notifica').innerText = venturini.percentuale_stata >= 50 ? "Vittoria al primo turno proiettata" : `${(50 - venturini.percentuale_stata).toFixed(2)}% per evitare il ballottaggio`;
+
+    // F. Generazione dinamica delle righe della tabella per tutti gli 8 candidati
+    const corpoTabella = document.getElementById('tabella-corpo');
+    corpoTabella.innerHTML = "";
+
+    dati.stime_finali.forEach(cand => {
+        const swing = cand.swing_rispetto_storico;
+        const segnoSwing = swing >= 0 ? "+" : "";
+        const coloreSwing = swing >= 0 ? "text-emerald-500" : "text-red-500";
+        const testoSwing = swing === 0 ? "= 0.00%" : `${segnoSwing}${swing.toFixed(2)}%`;
+        
+        const riga = `
+            <tr class="hover:bg-slate-50/50 transition">
+                <td class="p-4 pl-6 font-bold text-slate-900">${cand.candidato}</td>
+                <td class="p-4 text-right font-black text-slate-900 text-base">${cand.percentuale_stata.toFixed(2)}%</td>
+                <td class="p-4 text-right pr-6 ${coloreSwing} text-xs font-bold">${testoSwing}</td>
+            </tr>
+        `;
+        corpoTabella.innerHTML += riga;
+    });
+}
+
+// ========================================================
+// 2. RECUPERO LIVE DATI (POLLING STANDARD)
+// ========================================================
 async function caricaDatiLive() {
-            try {
-                // Legge il file JSON generato dallo script Python
-                const risposta = await fetch('dati_dashboard.json?t=' + new Date().getTime()); // Cambiato il nome del file coerentemente con il python
-                if (!risposta.ok) throw new Error("File JSON non trovato");
-                const dati = await risposta.json();
+    try {
+        const risposta = await fetch('dati_dashboard.json?t=' + new Date().getTime());
+        if (!risposta.ok) throw new Error("File JSON non trovato");
+        const dati = await risposta.json();
 
-                // 1. Aggiorna Informazioni di Stato
-                document.getElementById('aggiornamento').innerHTML = `<span class="material-icons-round text-slate-400">calendar_today</span> Lunedì 25 Maggio 2026 — ${dati.ultimo_aggiornamento}`;
-                document.getElementById('sottotitolo-sezioni').innerText = `Stima basata sul flusso di ${dati.scrutinio.sezioni_pervenute} sezioni su ${dati.scrutinio.totale_sezioni} (${dati.scrutinio.percentuale_completamento}%).`;
-                
-                // LEGGE L'ATTENDIBILITÀ LOGISTICA CALCOLATA DAL MOTORE PYTHON
-                const attendibilita = dati.scrutinio.attendibilita_statistica;
-                document.getElementById('attendibilita-valore').innerText = attendibilita.toFixed(1) + "%";
-                document.getElementById('attendibilita-barra').style.width = attendibilita + "%";
-                
-                // Determina lo scenario testuale basandosi sulla vera attendibilità del modello
-                let scenarioTesto = "In attesa di dati...";
-                if (attendibilita > 0) {
-                    if (attendibilita < 40) scenarioTesto = "Primi dati (Instabile)";
-                    else if (attendibilita < 85) scenarioTesto = "Consolidamento proiezioni";
-                    else if (attendibilita < 98) scenarioTesto = "Modello altamente stabile";
-                    else scenarioTesto = "Dato proiettato definitivo";
-                }
-                document.getElementById('scenario-testo').innerText = scenarioTesto;
+        // Esegue il rendering grafico dei dati appena scaricati
+        aggiornaInterfacciaGrafica(dati);
 
-                // 2. Gestione Logica della "CALL" (attivata se lo scrutinio supera il 15% e c'è un distacco netto)
-                const boxCall = document.getElementById('box-call');
-                // Estraiamo i primi due per verificare se si può fare una "call" statistica automatica
-                const primo = dati.stime_finali[0];
-                const secondo = dati.stime_finali[1];
-                
-                if (attendibilita >= 15.0 && (primo.percentuale_stata >= 50.0 || (primo.percentuale_stata - secondo.percentuale_stata) > 8.0)) {
-                    document.getElementById('testo-call').innerText = primo.candidato + " PROIETTATO VINCENTE";
-                    boxCall.classList.remove('hidden');
-                } else {
-                    boxCall.classList.add('hidden');
-                }
+        // Ripristina lo stato visivo del badge su Live
+        document.getElementById('status-badge').className = "flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full font-medium";
+        document.getElementById('status-badge').innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Dati Live Aggiornati`;
 
-                // 3. Aggiorna i due candidati principali cercandoli dinamicamente nell'array delle stime finali
-                const martella = dati.stime_finali.find(c => c.candidato.includes("Martella")) || { percentuale_stata: 0 };
-                const venturini = dati.stime_finali.find(c => c.candidato.includes("Venturini")) || { percentuale_stata: 0 };
+    } catch (errore) {
+        console.error("Errore nel caricamento dei dati live:", errore);
+        document.getElementById('status-badge').className = "flex items-center gap-2 text-sm text-red-700 bg-red-50 px-3.5 py-1.5 rounded-full font-medium";
+        document.getElementById('status-badge').innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Errore di sincronizzazione`;
+    }
+}
 
-                document.getElementById('martella-perc').innerText = martella.percentuale_stata.toFixed(2) + "%";
-                document.getElementById('martella-barra').style.width = martella.percentuale_stata + "%";
-                document.getElementById('martella-notifica').innerText = martella.percentuale_stata >= 50 ? "Vittoria al primo turno proiettata" : `${(50 - martella.percentuale_stata).toFixed(2)}% per evitare il ballottaggio`;
+// ========================================================
+// 3. FUNZIONE DI NAVIGAZIONE NEL TEMPO (MENU STORICO)
+// ========================================================
+async function caricaSnapshotStorico(nomeFile) {
+    // 1. Blocchiamo il caricamento automatico live in background per non sovrascrivere lo storico
+    clearInterval(intervalloPolling); 
+    
+    try {
+        const risposta = await fetch('storico/' + nomeFile + '?t=' + new Date().getTime());
+        if (!risposta.ok) throw new Error("Snapshot storico non trovato");
+        const dati = await risposta.json();
+        
+        // 2. Ridisegna l'interfaccia usando il JSON del passato
+        aggiornaInterfacciaGrafica(dati); 
+        
+        // 3. Modifica il badge in alto per ricordare all'utente che è "nel passato"
+        document.getElementById('status-badge').className = "flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3.5 py-1.5 rounded-full font-medium";
+        document.getElementById('status-badge').innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span> 
+            Consultazione Archivio 
+            <a href="index.php" class="ml-2 underline text-amber-900 font-bold hover:text-black">Torna al Live</a>
+        `;
+        
+    } catch (e) {
+        console.error("Errore nel recupero dello snapshot:", e);
+    }
+}
 
-                document.getElementById('venturini-perc').innerText = venturini.percentuale_stata.toFixed(2) + "%";
-                document.getElementById('venturini-barra').style.width = venturini.percentuale_stata + "%";
-                document.getElementById('venturini-notifica').innerText = venturini.percentuale_stata >= 50 ? "Vittoria al primo turno proiettata" : "Accesso al ballottaggio stabile";
-
-                // 4. Generazione dinamica delle righe della tabella per tutti e 8 i candidati
-                const corpoTabella = document.getElementById('tabella-corpo');
-                corpoTabella.innerHTML = ""; // Svuota la tabella precedente
-
-                dati.stime_finali.forEach(cand => {
-                    const swing = cand.swing_rispetto_storico;
-                    const segnoSwing = swing >= 0 ? "+" : "";
-                    const coloreSwing = swing >= 0 ? "text-emerald-500" : "text-red-500";
-                    const testoSwing = swing === 0 ? "= 0.00%" : `${segnoSwing}${swing.toFixed(2)}%`;
-                    
-                    const riga = `
-                        <tr class="hover:bg-slate-50/50 transition">
-                            <td class="p-4 pl-6 font-bold text-slate-900">${cand.candidato}</td>
-                            <td class="p-4 text-right font-black text-slate-900 text-base">${cand.percentuale_stata.toFixed(2)}%</td>
-                            <td class="p-4 text-right pr-6 ${coloreSwing} text-xs font-bold">${testoSwing}</td>
-                        </tr>
-                    `;
-                    corpoTabella.innerHTML += riga;
-                });
-
-                // Cambia il badge in alto per mostrare il successo
-                document.getElementById('status-badge').className = "flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full font-medium";
-
-            } catch (errore) {
-                console.error("Errore nel caricamento dei dati live:", errore);
-                document.getElementById('status-badge').className = "flex items-center gap-2 text-sm text-red-700 bg-red-50 px-3.5 py-1.5 rounded-full font-medium";
-                document.getElementById('status-badge').innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Errore di sincronizzazione`;
-            }
-        }
-        // Avvio automatico al caricamento della pagina
-        caricaDatiLive();
-        // Esegue il polling ogni 30 secondi
-        setInterval(caricaDatiLive, 30000);
-    </script>
+// ========================================================
+// INITIALIZATION
+// ========================================================
+document.addEventListener("DOMContentLoaded", () => {
+    caricaDatiLive();
+    intervalloPolling = setInterval(caricaDatiLive, 30000);
+});
+</script>
 </body>
 </html>
