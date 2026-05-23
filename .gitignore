@@ -9,3 +9,4 @@ storico/
 
 # Se vuoi escludere il foglio excel con lo storico delle scorse elezioni
 # storico_elezioni.xlsx
+.env

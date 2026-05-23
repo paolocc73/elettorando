@@ -1,23 +1,27 @@
 #!/bin/bash
 
-# Configurazione
-HOST="ftp.ipage.com"
-USER="paolocc60686"
-PASS="iSsettembree10!!!"
-REMOTE_DIR="/paolo.cc/app/elettorando"
-LOCAL_FILE="dati_dashboard.json"
+# Recupera la directory in cui si trova lo script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "🔄 Avvio trasferimento in background..."
+# Carica le credenziali dal file .env se esiste
+if [ -f "$DIR/.env" ]; then
+    source "$DIR/.env"
+else
+    echo "Errore: File .env non trovato. Impossibile caricare le credenziali."
+    exit 1
+fi
 
-# Comando LFTP che gestisce la connessione e l'upload sicuro
-# ... (tua configurazione iniziale HOST, USER, PASS) ...
+# Spostati nella directory del progetto per sicurezza sui percorsi relativi
+cd "$DIR"
 
-lftp -c "
-open -u $USER,$PASS $HOST
-cd $REMOTE_DIR
-put $LOCAL_FILE
-mirror -R storico storico 
-bye
-"
+# Esegui l'upload usando le variabili protette
+lftp <<EOF
+set ftp:ssl-allow no
+open -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
+put dati_dashboard.json
+put stato_sezioni.json
+mirror -R --ignore-missing-local storico storico
+quit
+EOF
 
 echo "✅ Trasferimento completato!"
