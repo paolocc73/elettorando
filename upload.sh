@@ -14,13 +14,18 @@ fi
 # Spostati nella directory del progetto per sicurezza sui percorsi relativi
 cd "$DIR"
 
-# Esegui l'upload usando le variabili protette
+# SICUREZZA: Crea la cartella storico locale se non esistesse, 
+# e inserisci un file nascosto temporaneo così non risulterà mai del tutto vuota
+mkdir -p storico
+touch storico/.anchor
+
+# Esegui l'upload usando le variabili protette (senza il flag che ha generato l'errore)
 lftp <<EOF
 set ftp:ssl-allow no
 open -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
 put dati_dashboard.json
 put stato_sezioni.json
-mirror -R --ignore-missing-local storico storico
+mirror --reverse --continue storico storico
 quit
 EOF
 
