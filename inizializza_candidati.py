@@ -11,18 +11,13 @@ def genera_configurazione_candidati():
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
     
-    print("Estrazione anagrafica completa dei candidati Sindaco 2026...")
+    print("Estrazione anagrafica e mappatura blocchi storici (Comunali 2020 + Regionali 2025)...")
     
     try:
         risposta = requests.get(url_sezione_1, headers=headers, timeout=15)
         soup = BeautifulSoup(risposta.text, 'html.parser')
-        
-        # Prendiamo la prima tabella (Sindaco)
         tabella_sindaco = soup.find('table')
-        if not tabella_sindaco:
-            print("Errore: Tabella non trovata.")
-            return
-            
+        
         config_candidati = {
             "candidati_2026": {},
             "mappatura_storica": {}
@@ -30,41 +25,68 @@ def genera_configurazione_candidati():
         
         righe = tabella_sindaco.find_all('tr')
         
-        # Saltiamo la prima riga di intestazione e cicliamo su tutte le altre
         for riga in righe[1:]:
             celle = [cella.get_text(strip=True) for cella in riga.find_all(['td', 'th'])]
-            
-            # Verifichiamo che la riga abbia abbastanza colonne e che il nome non sia vuoto
             if len(celle) >= 4:
                 nome_candidato = celle[2]
                 
                 if nome_candidato and not any(x in nome_candidato.lower() for x in ['totale', 'validi']):
-                    # Aggiungiamo alla struttura live
                     config_candidati["candidati_2026"][nome_candidato] = {
                         "voti_live": 0,
                         "percentuale_live": 0.0
                     }
                     
-                    # Mappatura automatica con i blocchi del passato per lo swing
+                    # --- MAPPATURA STRATEGICA RIGIDA ---
+                    
+                    # 1. I due contendenti principali
                     if "VENTURINI" in nome_candidato:
-                        config_candidati["mappatura_storica"][nome_candidato] = "Brugnaro"
+                        config_candidati["mappatura_storica"][nome_candidato] = {
+                            "tipo_blocco": "cdx_principale",
+                            "ancora_2020": "Brugnaro",
+                            "ancora_2025": "Stefani"
+                        }
                     elif "MARTELLA" in nome_candidato:
-                        config_candidati["mappatura_storica"][nome_candidato] = "Baretta"
+                        config_candidati["mappatura_storica"][nome_candidato] = {
+                            "tipo_blocco": "csx_principale",
+                            "ancora_2020": "Baretta",
+                            "ancora_2025": "Manildo"
+                        }
+                    
+                    # 2. Area Centrodestra (cdx)
+                    elif any(x in nome_candidato for x in ["DEL ZOTTO", "CORO'", "BOLDRIN", "AGIRMO"]):
+                        config_candidati["mappatura_storica"][nome_candidato] = {
+                            "tipo_blocco": "cdx_minore",
+                            "ancora_2020": "Tot altri cdx",
+                            "ancora_2025": "Tot altri cdx.1"
+                        }
+                    
+                    # 3. Area Centrosinistra (csx)
+                    elif any(x in nome_candidato for x in ["VERNIER", "MARTINI"]):
+                        config_candidati["mappatura_storica"][nome_candidato] = {
+                            "tipo_blocco": "csx_minore",
+                            "ancora_2020": "Tot altri csx",
+                            "ancora_2025": "Tot altri csx.1"
+                        }
+                    
+                    # Fallback di sicurezza per eventuali sorprese sulla scheda
                     else:
-                        config_candidati["mappatura_storica"][nome_candidato] = "Altro"
+                        config_candidati["mappatura_storica"][nome_candidato] = {
+                            "tipo_blocco": "csx_minore",
+                            "ancora_2020": "Tot altri csx",
+                            "ancora_2025": "Tot altri csx.1"
+                        }
                         
-        print(f"\nTrovati {len(config_candidati['candidati_2026'])} candidati Sindaco.")
-        for c in config_candidati["candidati_2026"].keys():
-            print(f" - {c} (Mappato su storico: {config_candidati['mappatura_storica'][c]})")
-            
-        # Scrittura del file di configurazione
         with open('candidati_config.json', 'w', encoding='utf-8') as f:
             json.dump(config_candidati, f, indent=4, ensure_ascii=False)
             
-        print("\n✅ File 'candidati_config.json' generato con successo!")
+        print(f"\nGenerata configurazione per {len(config_candidati['candidati_2026'])} candidati.")
+        for c, mappa in config_candidati["mappatura_storica"].items():
+            print(f" - {c} -> Blocco: {mappa['tipo_blocco']} (Ancore: {mappa['ancora_2020']} / {mappa['ancora_2025']})")
+            
+        print("\n✅ Configurazione salvata in 'candidati_config.json'!")
         
     except Exception as e:
-        print(f"Errore durante la generazione: {e}")
+        print(f"Errore: {e}")
 
 if __name__ == "__main__":
     genera_configurazione_candidati()

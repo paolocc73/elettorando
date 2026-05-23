@@ -218,6 +218,39 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
     df_storico['swing_cdx_2025'] = df_storico['pct_cdx_live_2026'] - df_storico['pct_cdx_2025']
     df_storico['swing_csx_2025'] = df_storico['pct_csx_live_2026'] - df_storico['pct_csx_2025']
     
+# ========================================================
+    # NUOVO MOTORE: SWING PESATO SULLA SIGNIFICATIVITÀ DELLE ROCCAFORTI
+    # ========================================================
+    df_storico['peso_swing_sezione'] = 1.0  # Peso base per ogni sezione
+
+    if sezioni_pervenute_count > 0:
+        # Calcoliamo la significatività per ogni sezione pervenuta
+        for idx, row in df_storico[df_storico['sezione_pervenuta']].iterrows():
+            # Baseline storica di riferimento per questa sezione (60/40)
+            base_sez_cdx = (row['pct_cdx_2020'] * PESO_STORICO_2020) + (row['pct_cdx_2025'] * PESO_STORICO_2025)
+            base_sez_csx = (row['pct_csx_2020'] * PESO_STORICO_2020) + (row['pct_csx_2025'] * PESO_STORICO_2025)
+            
+            # Se la sezione era storicamente a forte propensione CDX (es. > 55%) 
+            # ma i dati live mostrano un forte recupero del CSX (swing positivo per il CSX)
+            if base_sez_cdx > 0.55 and row['swing_csx_2025'] > 0.01:
+                # Amplifichiamo il peso di questa sezione nel determinare il "vento" cittadino
+                df_storico.at[idx, 'peso_swing_sezione'] = 2.0  # Vale il doppio!
+            elif base_sez_csx > 0.55 and row['swing_cdx_2025'] > 0.01:
+                df_storico.at[idx, 'peso_swing_sezione'] = 2.0
+                
+        # Calcolo lo Swing Globale Cittadino PESATO (il vento generale amplificato dalle roccaforti)
+        sez_prev = df_storico['sezione_pervenuta']
+        p_swing = df_storico[sez_prev]['peso_swing_sezione']
+        
+        swing_globale_cdx_2020 = np.average(df_storico[sez_prev]['swing_cdx_2020'], weights=p_swing)
+        swing_globale_csx_2020 = np.average(df_storico[sez_prev]['swing_csx_2020'], weights=p_swing)
+        swing_globale_cdx_2025 = np.average(df_storico[sez_prev]['swing_cdx_2025'], weights=p_swing)
+        swing_globale_csx_2025 = np.average(df_storico[sez_prev]['swing_csx_2025'], weights=p_swing)
+    else:
+        swing_globale_cdx_2020 = swing_globale_csx_2020 = 0.0
+        swing_globale_cdx_2025 = swing_globale_csx_2025 = 0.0
+
+    # Calcolo lo Swing di Municipalità
     swing_muni = df_storico[df_storico['sezione_pervenuta']].groupby('Municipalità').agg(
         m_swing_cdx_2020=('swing_cdx_2020', 'mean'),
         m_swing_csx_2020=('swing_csx_2020', 'mean'),
@@ -225,13 +258,28 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
         m_swing_csx_2025=('swing_csx_2025', 'mean')
     ).fillna(0.0)
     
-    df_storico = df_storico.join(swing_muni, on='Municipalità')
+    # Rimuovi vecchie colonne swing se presenti per evitare duplicati nel join
+    cols_to_drop = [c for c in ['m_swing_cdx_2020', 'm_swing_csx_2020', 'm_swing_cdx_2025', 'm_swing_csx_2025'] if c in df_storico.columns]
+    df_storico = df_storico.drop(columns=cols_to_drop).join(swing_muni, on='Municipalità')
     df_storico['m_swing_cdx_2020'] = df_storico['m_swing_cdx_2020'].fillna(0.0)
     df_storico['m_swing_csx_2020'] = df_storico['m_swing_csx_2020'].fillna(0.0)
     df_storico['m_swing_cdx_2025'] = df_storico['m_swing_cdx_2025'].fillna(0.0)
     df_storico['m_swing_csx_2025'] = df_storico['m_swing_csx_2025'].fillna(0.0)
 
+    # ========================================================
+    # APPLICAZIONE DINAMICA DEI PESI STORICI (DAMPING FACTOR)
+    # ========================================================
+    # Più sezioni reali arrivano, più riduciamo l'effetto ancora del 2020
+    percentuale_scrutinio = sezioni_pervenute_count / len(df_storico)
+    
+    # Il peso del 2020 si azzera linearmente man mano che entriamo nel vivo dello spoglio
+    ATTENUAZIONE_2020 = max(0.0, 1.0 - (percentuale_scrutinio * 2.0)) # Si azzera già al 50% dello scrutinio
+    PESO_DINA_2020 = PESO_STORICO_2020 * ATTENUAZIONE_2020
+    PESO_DINA_2025 = 1.0 - PESO_DINA_2020
+
     proiezioni_candidati = {c: 0.0 for c in candidati_2026}
+    PESO_SWING_LOCALE = 0.60
+    PESO_SWING_GLOBALE = 0.40
     
     for idx, row in df_storico.iterrows():
         peso = row['peso_sezione']
@@ -242,13 +290,19 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
                 pct_effettiva = row[f'voti_live_{c}'] / tot_sez if tot_sez > 0 else 0.0
                 proiezioni_candidati[c] += pct_effettiva * peso
         else:
-            stima_pct_cdx_2020 = np.clip(row['pct_cdx_2020'] + row['m_swing_cdx_2020'], 0, 1)
-            stima_pct_cdx_2025 = np.clip(row['pct_cdx_2025'] + row['m_swing_cdx_2025'], 0, 1)
-            stima_pct_cdx = (stima_pct_cdx_2020 * PESO_STORICO_2020) + (stima_pct_cdx_2025 * PESO_STORICO_2025)
+            effettivo_swing_cdx_2020 = (row['m_swing_cdx_2020'] * PESO_SWING_LOCALE) + (swing_globale_cdx_2020 * PESO_SWING_GLOBALE)
+            effettivo_swing_csx_2020 = (row['m_swing_csx_2020'] * PESO_SWING_LOCALE) + (swing_globale_csx_2020 * PESO_SWING_GLOBALE)
+            effettivo_swing_cdx_2025 = (row['m_swing_cdx_2025'] * PESO_SWING_LOCALE) + (swing_globale_cdx_2025 * PESO_SWING_GLOBALE)
+            effettivo_swing_csx_2025 = (row['m_swing_csx_2025'] * PESO_SWING_LOCALE) + (swing_globale_csx_2025 * PESO_SWING_GLOBALE)
+
+            stima_pct_cdx_2020 = np.clip(row['pct_cdx_2020'] + effettivo_swing_cdx_2020, 0, 1)
+            stima_pct_cdx_2025 = np.clip(row['pct_cdx_2025'] + effettivo_swing_cdx_2025, 0, 1)
+            # Usiamo i pesi dinamici aggiornati
+            stima_pct_cdx = (stima_pct_cdx_2020 * PESO_DINA_2020) + (stima_pct_cdx_2025 * PESO_DINA_2025)
             
-            stima_pct_csx_2020 = np.clip(row['pct_csx_2020'] + row['m_swing_csx_2020'], 0, 1)
-            stima_pct_csx_2025 = np.clip(row['pct_csx_2025'] + row['m_swing_csx_2025'], 0, 1)
-            stima_pct_csx = (stima_pct_csx_2020 * PESO_STORICO_2020) + (stima_pct_csx_2025 * PESO_STORICO_2025)
+            stima_pct_csx_2020 = np.clip(row['pct_csx_2020'] + effettivo_swing_csx_2020, 0, 1)
+            stima_pct_csx_2025 = np.clip(row['pct_csx_2025'] + effettivo_swing_csx_2025, 0, 1)
+            stima_pct_csx = (stima_pct_csx_2020 * PESO_DINA_2020) + (stima_pct_csx_2025 * PESO_DINA_2025)
             
             for c in candidati_2026:
                 tipo = mappa_config.get(c, {}).get('tipo_blocco', '')
