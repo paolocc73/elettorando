@@ -34,13 +34,45 @@
         }
     },
     "mappatura_storica": {
-        "PIERANGELO DEL ZOTTO": "Altro",
-        "LUIGI CORO'": "Altro",
-        "SIMONE VENTURINI": "Brugnaro",
-        "MICHELE BOLDRIN": "Altro",
-        "ROBERTO AGIRMO": "Altro",
-        "CLAUDIO VERNIER": "Altro",
-        "ANDREA MARTELLA": "Baretta",
-        "GIOVANNI MARTINI": "Altro"
+        "PIERANGELO DEL ZOTTO": {
+            "tipo_blocco": "cdx_minore",
+            "ancora_2020": "Tot altri cdx",
+            "ancora_2025": "Tot altri cdx.1"
+        },
+        "LUIGI CORO'": {
+            "tipo_blocco": "cdx_minore",
+            "ancora_2020": "Tot altri cdx",
+            "ancora_2025": "Tot altri cdx.1"
+        },
+        "SIMONE VENTURINI": {
+            "tipo_blocco": "cdx_principale",
+            "ancora_2020": "Brugnaro",
+            "ancora_2025": "Stefani"
+        },
+        "MICHELE BOLDRIN": {
+            "tipo_blocco": "cdx_minore",
+            "ancora_2020": "Tot altri cdx",
+            "ancora_2025": "Tot altri cdx.1"
+        },
+        "ROBERTO AGIRMO": {
+            "tipo_blocco": "cdx_minore",
+            "ancora_2020": "Tot altri cdx",
+            "ancora_2025": "Tot altri cdx.1"
+        },
+        "CLAUDIO VERNIER": {
+            "tipo_blocco": "csx_minore",
+            "ancora_2020": "Tot altri csx",
+            "ancora_2025": "Tot altri csx.1"
+        },
+        "ANDREA MARTELLA": {
+            "tipo_blocco": "csx_principale",
+            "ancora_2020": "Baretta",
+            "ancora_2025": "Manildo"
+        },
+        "GIOVANNI MARTINI": {
+            "tipo_blocco": "csx_minore",
+            "ancora_2020": "Tot altri csx",
+            "ancora_2025": "Tot altri csx.1"
+        }
     }
 }
