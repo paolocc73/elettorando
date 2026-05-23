@@ -187,54 +187,69 @@
             document.getElementById('sidebar').classList.toggle('-translate-x-full');
         }
 
-        async function caricaDatiLive() {
+async function caricaDatiLive() {
             try {
                 // Legge il file JSON generato dallo script Python
-                const risposta = await fetch('dati_voto.json?t=' + new Date().getTime()); // Bypassa la cache del browser
+                const risposta = await fetch('dati_dashboard.json?t=' + new Date().getTime()); // Cambiato il nome del file coerentemente con il python
                 if (!risposta.ok) throw new Error("File JSON non trovato");
                 const dati = await risposta.json();
 
                 // 1. Aggiorna Informazioni di Stato
                 document.getElementById('aggiornamento').innerHTML = `<span class="material-icons-round text-slate-400">calendar_today</span> Lunedì 25 Maggio 2026 — ${dati.ultimo_aggiornamento}`;
-                document.getElementById('sottotitolo-sezioni').innerText = `Stima basata sul flusso di ${dati.sezioni_pervenute} sezioni su ${dati.totale_sezioni} (${dati.percentuale_scrutinio}%).`;
-                document.getElementById('attendibilita-valore').innerText = dati.attendibilita + "%";
-                document.getElementById('attendibilita-barra').style.width = dati.attendibilita + "%";
-                document.getElementById('scenario-testo').innerText = dati.scenario_probabile;
+                // Sistemate le chiavi prendendole dal sotto-oggetto 'scrutinio' generato dal python
+                document.getElementById('sottotitolo-sezioni').innerText = `Stima basata sul flusso di ${dati.scrutinio.sezioni_pervenute} sezioni su ${dati.scrutinio.totale_sezioni} (${dati.scrutinio.percentuale_completamento}%).`;
+                
+                // Calcoliamo l'attendibilità in base alla percentuale di completamento dello scrutinio
+                const attendibilita = dati.scrutinio.percentuale_completamento;
+                document.getElementById('attendibilita-valore').innerText = attendibilita.toFixed(1) + "%";
+                document.getElementById('attendibilita-barra').style.width = attendibilita + "%";
+                
+                // Determina uno scenario testuale dinamico in base allo scrutinio
+                let scenarioTesto = "Inizio scrutinio...";
+                if (attendibilita > 0) {
+                    scenarioTesto = attendibilita < 25 ? "Primi dati (Instabile)" : (attendibilita < 70 ? "Consolidamento proiezioni" : "Modello stabilizzato");
+                }
+                document.getElementById('scenario-testo').innerText = scenarioTesto;
 
-                // 2. Gestione Logica della "CALL"
+                // 2. Gestione Logica della "CALL" (attivata se lo scrutinio supera il 15% e c'è un distacco netto)
                 const boxCall = document.getElementById('box-call');
-                if (dati.scatta_call) {
-                    document.getElementById('testo-call').innerText = dati.testo_call;
+                // Estraiamo i primi due per verificare se si può fare una "call" statistica automatica
+                const primo = dati.stime_finali[0];
+                const secondo = dati.stime_finali[1];
+                
+                if (attendibilita >= 15.0 && (primo.percentuale_stata >= 50.0 || (primo.percentuale_stata - secondo.percentuale_stata) > 8.0)) {
+                    document.getElementById('testo-call').innerText = primo.candidato + " PROIETTATO VINCENTE";
                     boxCall.classList.remove('hidden');
                 } else {
                     boxCall.classList.add('hidden');
                 }
 
-                // 3. Aggiorna i due candidati principali (Primi due elementi dell'array JSON)
-                const martella = dati.candidati[0];
-                const venturini = dati.candidati[1];
+                // 3. Aggiorna i due candidati principali cercandoli dinamicamente nell'array delle stime finali
+                const martella = dati.stime_finali.find(c => c.candidato.includes("Martella")) || { percentuale_stata: 0 };
+                const venturini = dati.stime_finali.find(c => c.candidato.includes("Venturini")) || { percentuale_stata: 0 };
 
-                document.getElementById('martella-perc').innerText = martella.percentuale.toFixed(2) + "%";
-                document.getElementById('martella-barra').style.width = martella.percentuale + "%";
-                document.getElementById('martella-notifica').innerText = martella.percentuale >= 50 ? "Vittoria al primo turno proiettata" : `${(50 - martella.percentuale).toFixed(2)}% per evitare il ballottaggio`;
+                document.getElementById('martella-perc').innerText = martella.percentuale_stata.toFixed(2) + "%";
+                document.getElementById('martella-barra').style.width = martella.percentuale_stata + "%";
+                document.getElementById('martella-notifica').innerText = martella.percentuale_stata >= 50 ? "Vittoria al primo turno proiettata" : `${(50 - martella.percentuale_stata).toFixed(2)}% per evitare il ballottaggio`;
 
-                document.getElementById('venturini-perc').innerText = venturini.percentuale.toFixed(2) + "%";
-                document.getElementById('venturini-barra').style.width = venturini.percentuale + "%";
-                document.getElementById('venturini-notifica').innerText = venturini.percentuale >= 50 ? "Vittoria al primo turno proiettata" : "Accesso al ballottaggio stabile";
+                document.getElementById('venturini-perc').innerText = venturini.percentuale_stata.toFixed(2) + "%";
+                document.getElementById('venturini-barra').style.width = venturini.percentuale_stata + "%";
+                document.getElementById('venturini-notifica').innerText = venturini.percentuale_stata >= 50 ? "Vittoria al primo turno proiettata" : "Accesso al ballottaggio stabile";
 
-                # 4. Generazione dinamica delle righe della tabella per tutti e 8 i candidati
+                // 4. Generazione dinamica delle righe della tabella per tutti e 8 i candidati
                 const corpoTabella = document.getElementById('tabella-corpo');
                 corpoTabella.innerHTML = ""; // Svuota la tabella precedente
 
-                dati.candidati.forEach(cand => {
-                    const segnoSwing = cand.swing >= 0 ? "+" : "";
-                    const coloreSwing = cand.swing >= 0 ? "text-emerald-500" : "text-red-500";
-                    const testoSwing = cand.swing === 0 ? "= 0.00%" : `${segnoSwing}${cand.swing.toFixed(2)}%`;
+                dati.stime_finali.forEach(cand => {
+                    const swing = cand.swing_rispetto_storico;
+                    const segnoSwing = swing >= 0 ? "+" : "";
+                    const coloreSwing = swing >= 0 ? "text-emerald-500" : "text-red-500";
+                    const testoSwing = swing === 0 ? "= 0.00%" : `${segnoSwing}${swing.toFixed(2)}%`;
                     
                     const riga = `
                         <tr class="hover:bg-slate-50/50 transition">
-                            <td class="p-4 pl-6 font-bold text-slate-900">${cand.nome} <span class="text-xs font-normal text-slate-400">(${cand.coalizione})</span></td>
-                            <td class="p-4 text-right font-black text-slate-900 text-base">${cand.percentuale.toFixed(2)}%</td>
+                            <td class="p-4 pl-6 font-bold text-slate-900">${cand.candidato}</td>
+                            <td class="p-4 text-right font-black text-slate-900 text-base">${cand.percentuale_stata.toFixed(2)}%</td>
                             <td class="p-4 text-right pr-6 ${coloreSwing} text-xs font-bold">${testoSwing}</td>
                         </tr>
                     `;
@@ -250,7 +265,6 @@
                 document.getElementById('status-badge').innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Errore di sincronizzazione`;
             }
         }
-
         // Avvio automatico al caricamento della pagina
         caricaDatiLive();
         // Esegue il polling ogni 30 secondi

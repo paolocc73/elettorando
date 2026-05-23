@@ -7,6 +7,7 @@ import time
 import random
 import os
 from concurrent.futures import ThreadPoolExecutor
+import subprocess
 
 # ==========================================
 # CONSTANTI DI CONFIGURAZIONE STATISTICA
@@ -391,3 +392,15 @@ if __name__ == "__main__":
             stime_candidati=risultati_proiettati,
             swing_candidati=swing_per_candidato
         )
+        
+        # --------------------------------------------------------
+        # AUTOMAZIONE UPLOAD CON LFTP
+        # --------------------------------------------------------
+        print("📤 Avvio trasferimento dati sul server remoto...")
+        try:
+            # Esegue lo script bash creato in precedenza
+            subprocess.run(["./upload.sh"], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️ Errore durante l'esecuzione di upload.sh: {e}")
+        except Exception as e:
+            print(f"⚠️ Impossibile avviare lo script di upload: {e}")
