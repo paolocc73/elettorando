@@ -145,13 +145,32 @@ def estrai_dati_sezione(id_sezione):
 # NOVITÀ: FUNZIONE DI ESPORTAZIONE JSON DASHBOARD
 # ==========================================
 def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, swing_candidati, file_output="dati_dashboard.json"):
-    """Genera il file JSON strutturato per l'aggiornamento della dashboard HTML"""
+    """Genera il file JSON strutturato con attendibilità statistica non lineare"""
+    pct_scrutinio = (sezioni_pervenute / totale_sezioni) * 100 if totale_sezioni > 0 else 0
+    
+    # Calcolo attendibilità non lineare (Curva Sigmoide)
+    # Al 10% di spoglio -> ~25% attendibilità
+    # Al 30% di spoglio -> ~73% attendibilità
+    # Al 50% di spoglio -> ~95% attendibilità
+    # Al 70% di spoglio -> ~99.5% attendibilità
+    if pct_scrutinio == 0:
+        attendibilita_modello = 0.0
+    elif pct_scrutinio == 100:
+        attendibilita_modello = 100.0
+    else:
+        # Funzione logistica scalata tra 0 e 100
+        attendibilita_modello = round(100 / (1 + np.exp(-0.1 * (pct_scrutinio - 20))), 2)
+        # Un piccolo safe check per evitare balzi strani all'inizio
+        attendibilita_modello = max(round(pct_scrutinio, 2), attendibilita_modello)
+        attendibilita_modello = min(100.0, attendibilita_modello)
+
     dati = {
         "ultimo_aggiornamento": time.strftime("%Y-%m-%d %H:%M:%S"),
         "scrutinio": {
             "sezioni_pervenute": int(sezioni_pervenute),
             "totale_sezioni": int(totale_sezioni),
-            "percentuale_completamento": round((sezioni_pervenute / totale_sezioni) * 100, 2) if totale_sezioni > 0 else 0
+            "percentuale_completamento": round(pct_scrutinio, 2),
+            "attendibilita_statistica": round(attendibilita_modello, 2)  # <--- NUOVA CHIAVE
         },
         "stime_finali": [
             {
@@ -163,16 +182,15 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
         ]
     }
     
-    # Ordina la classifica per percentuale decrescente
     dati["stime_finali"] = sorted(dati["stime_finali"], key=lambda x: x["percentuale_stata"], reverse=True)
     
     try:
         with open(file_output, 'w', encoding='utf-8') as f:
             json.dump(dati, f, indent=4, ensure_ascii=False)
-        print(f"✅ Dashboard aggiornata con successo in '{file_output}'.")
+        print(f"✅ Dashboard aggiornata con successo in '{file_output}' (Attendibilità: {attendibilita_modello}%).")
     except Exception as e:
         print(f"⚠️ Errore durante la scrittura del file dashboard: {e}")
-
+        
 # ==========================================
 # 3. MOTORE DI CALCOLO E PROIEZIONE VARIABILE
 # ==========================================

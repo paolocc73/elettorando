@@ -196,18 +196,20 @@ async function caricaDatiLive() {
 
                 // 1. Aggiorna Informazioni di Stato
                 document.getElementById('aggiornamento').innerHTML = `<span class="material-icons-round text-slate-400">calendar_today</span> Lunedì 25 Maggio 2026 — ${dati.ultimo_aggiornamento}`;
-                // Sistemate le chiavi prendendole dal sotto-oggetto 'scrutinio' generato dal python
                 document.getElementById('sottotitolo-sezioni').innerText = `Stima basata sul flusso di ${dati.scrutinio.sezioni_pervenute} sezioni su ${dati.scrutinio.totale_sezioni} (${dati.scrutinio.percentuale_completamento}%).`;
                 
-                // Calcoliamo l'attendibilità in base alla percentuale di completamento dello scrutinio
-                const attendibilita = dati.scrutinio.percentuale_completamento;
+                // LEGGE L'ATTENDIBILITÀ LOGISTICA CALCOLATA DAL MOTORE PYTHON
+                const attendibilita = dati.scrutinio.attendibilita_statistica;
                 document.getElementById('attendibilita-valore').innerText = attendibilita.toFixed(1) + "%";
                 document.getElementById('attendibilita-barra').style.width = attendibilita + "%";
                 
-                // Determina uno scenario testuale dinamico in base allo scrutinio
-                let scenarioTesto = "Inizio scrutinio...";
+                // Determina lo scenario testuale basandosi sulla vera attendibilità del modello
+                let scenarioTesto = "In attesa di dati...";
                 if (attendibilita > 0) {
-                    scenarioTesto = attendibilita < 25 ? "Primi dati (Instabile)" : (attendibilita < 70 ? "Consolidamento proiezioni" : "Modello stabilizzato");
+                    if (attendibilita < 40) scenarioTesto = "Primi dati (Instabile)";
+                    else if (attendibilita < 85) scenarioTesto = "Consolidamento proiezioni";
+                    else if (attendibilita < 98) scenarioTesto = "Modello altamente stabile";
+                    else scenarioTesto = "Dato proiettato definitivo";
                 }
                 document.getElementById('scenario-testo').innerText = scenarioTesto;
 
