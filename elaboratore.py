@@ -90,11 +90,6 @@ def analizza_semaforo_e_scopri_variazioni():
                     # Salviamo l'impronta di questa sezione per il prossimo controllo
                     stato_corrente[id_sez_str] = {"voti": num_voti, "stato": stato}
                     
-                    # VERIFICA DIFFERENZIALE:
-                    # Dobbiamo scaricare l'HTML solo se:
-                    # 1. Non abbiamo dati storici in cache per questa sezione
-                    # 2. Il numero di voti nel semaforo è aumentato/cambiato
-                    # 3. Lo stato è cambiato
                     if id_sez_str not in stato_precedente:
                         if num_voti > 0 or str(stato) == "-1":
                             sezioni_da_aggiornare.append(int(id_sez))
@@ -146,13 +141,44 @@ def estrai_dati_sezione(id_sezione):
         return None
 
 # ==========================================
+# NOVITÀ: FUNZIONE DI ESPORTAZIONE JSON DASHBOARD
+# ==========================================
+def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, swing_candidati, file_output="dati_dashboard.json"):
+    """Genera il file JSON strutturato per l'aggiornamento della dashboard HTML"""
+    dati = {
+        "ultimo_aggiornamento": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "scrutinio": {
+            "sezioni_pervenute": int(sezioni_pervenute),
+            "totale_sezioni": int(totale_sezioni),
+            "percentuale_completamento": round((sezioni_pervenute / totale_sezioni) * 100, 2) if totale_sezioni > 0 else 0
+        },
+        "stime_finali": [
+            {
+                "candidato": cand,
+                "percentuale_stata": round(val, 2),
+                "swing_rispetto_storico": round(swing_candidati.get(cand, 0.0), 2)
+            }
+            for cand, val in stime_candidati.items()
+        ]
+    }
+    
+    # Ordina la classifica per percentuale decrescente
+    dati["stime_finali"] = sorted(dati["stime_finali"], key=lambda x: x["percentuale_stata"], reverse=True)
+    
+    try:
+        with open(file_output, 'w', encoding='utf-8') as f:
+            json.dump(dati, f, indent=4, ensure_ascii=False)
+        print(f"✅ Dashboard aggiornata con successo in '{file_output}'.")
+    except Exception as e:
+        print(f"⚠️ Errore durante la scrittura del file dashboard: {e}")
+
+# ==========================================
 # 3. MOTORE DI CALCOLO E PROIEZIONE VARIABILE
 # ==========================================
 def elabora_proiezioni(df_storico, configurazione_candidati):
     mappa_config = configurazione_candidati.get("mappatura_storica", {})
     candidati_2026 = list(configurazione_candidati.get("candidati_2026", {}).keys())
     
-    # File locale per mantenere in memoria i voti veri scaricati l'ultima volta
     DATABASE_LIVE_FILE = "database_voti_live.json"
     database_voti_live = {}
     if os.path.exists(DATABASE_LIVE_FILE):
@@ -160,7 +186,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
             try: database_voti_live = json.load(f)
             except: pass
 
-    # 1. Rilevamento differenziale delle sezioni cambiate
     sezioni_mutate, stato_totale_semaforo = analizza_semaforo_e_scopri_variazioni()
     
     if sezioni_mutate:
@@ -179,14 +204,12 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
                 except:
                     pass
         
-        # Uniamo i nuovi dati al database globale su disco
         database_voti_live.update(dati_nuovi)
         with open(DATABASE_LIVE_FILE, 'w') as f:
             json.dump(database_voti_live, f, indent=4)
     else:
         print("☕ Nessuna variazione rilevata nei seggi. Uso i dati pronti in memoria.")
 
-    # 2. Integrazione nel DataFrame principale
     for c in candidati_2026:
         df_storico[f'voti_live_{c}'] = 0
     df_storico['sezione_pervenuta'] = False
@@ -218,27 +241,21 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
     df_storico['swing_cdx_2025'] = df_storico['pct_cdx_live_2026'] - df_storico['pct_cdx_2025']
     df_storico['swing_csx_2025'] = df_storico['pct_csx_live_2026'] - df_storico['pct_csx_2025']
     
-# ========================================================
+    # ========================================================
     # NUOVO MOTORE: SWING PESATO SULLA SIGNIFICATIVITÀ DELLE ROCCAFORTI
     # ========================================================
-    df_storico['peso_swing_sezione'] = 1.0  # Peso base per ogni sezione
+    df_storico['peso_swing_sezione'] = 1.0
 
     if sezioni_pervenute_count > 0:
-        # Calcoliamo la significatività per ogni sezione pervenuta
         for idx, row in df_storico[df_storico['sezione_pervenuta']].iterrows():
-            # Baseline storica di riferimento per questa sezione (60/40)
             base_sez_cdx = (row['pct_cdx_2020'] * PESO_STORICO_2020) + (row['pct_cdx_2025'] * PESO_STORICO_2025)
             base_sez_csx = (row['pct_csx_2020'] * PESO_STORICO_2020) + (row['pct_csx_2025'] * PESO_STORICO_2025)
             
-            # Se la sezione era storicamente a forte propensione CDX (es. > 55%) 
-            # ma i dati live mostrano un forte recupero del CSX (swing positivo per il CSX)
             if base_sez_cdx > 0.55 and row['swing_csx_2025'] > 0.01:
-                # Amplifichiamo il peso di questa sezione nel determinare il "vento" cittadino
-                df_storico.at[idx, 'peso_swing_sezione'] = 2.0  # Vale il doppio!
+                df_storico.at[idx, 'peso_swing_sezione'] = 2.0
             elif base_sez_csx > 0.55 and row['swing_cdx_2025'] > 0.01:
                 df_storico.at[idx, 'peso_swing_sezione'] = 2.0
                 
-        # Calcolo lo Swing Globale Cittadino PESATO (il vento generale amplificato dalle roccaforti)
         sez_prev = df_storico['sezione_pervenuta']
         p_swing = df_storico[sez_prev]['peso_swing_sezione']
         
@@ -258,7 +275,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
         m_swing_csx_2025=('swing_csx_2025', 'mean')
     ).fillna(0.0)
     
-    # Rimuovi vecchie colonne swing se presenti per evitare duplicati nel join
     cols_to_drop = [c for c in ['m_swing_cdx_2020', 'm_swing_csx_2020', 'm_swing_cdx_2025', 'm_swing_csx_2025'] if c in df_storico.columns]
     df_storico = df_storico.drop(columns=cols_to_drop).join(swing_muni, on='Municipalità')
     df_storico['m_swing_cdx_2020'] = df_storico['m_swing_cdx_2020'].fillna(0.0)
@@ -269,11 +285,9 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
     # ========================================================
     # APPLICAZIONE DINAMICA DEI PESI STORICI (DAMPING FACTOR)
     # ========================================================
-    # Più sezioni reali arrivano, più riduciamo l'effetto ancora del 2020
     percentuale_scrutinio = sezioni_pervenute_count / len(df_storico)
     
-    # Il peso del 2020 si azzera linearmente man mano che entriamo nel vivo dello spoglio
-    ATTENUAZIONE_2020 = max(0.0, 1.0 - (percentuale_scrutinio * 2.0)) # Si azzera già al 50% dello scrutinio
+    ATTENUAZIONE_2020 = max(0.0, 1.0 - (percentuale_scrutinio * 2.0))
     PESO_DINA_2020 = PESO_STORICO_2020 * ATTENUAZIONE_2020
     PESO_DINA_2025 = 1.0 - PESO_DINA_2020
 
@@ -297,7 +311,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
 
             stima_pct_cdx_2020 = np.clip(row['pct_cdx_2020'] + effettivo_swing_cdx_2020, 0, 1)
             stima_pct_cdx_2025 = np.clip(row['pct_cdx_2025'] + effettivo_swing_cdx_2025, 0, 1)
-            # Usiamo i pesi dinamici aggiornati
             stima_pct_cdx = (stima_pct_cdx_2020 * PESO_DINA_2020) + (stima_pct_cdx_2025 * PESO_DINA_2025)
             
             stima_pct_csx_2020 = np.clip(row['pct_csx_2020'] + effettivo_swing_csx_2020, 0, 1)
@@ -320,7 +333,15 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
         for c in proiezioni_candidati:
             proiezioni_candidati[c] = (proiezioni_candidati[c] / somma_pesi) * 100
             
-    return proiezioni_candidati
+    # Restituiamo anche le variabili di controllo utili alla dashboard
+    info_controllo = {
+        "sezioni_pervenute": sezioni_pervenute_count,
+        "totale_sezioni": len(df_storico),
+        "swing_globale_cdx_2025": swing_globale_cdx_2025 * 100,
+        "swing_globale_csx_2025": swing_globale_csx_2025 * 100
+    }
+            
+    return proiezioni_candidati, info_controllo
 
 # ==========================================
 # 4. MAIN LOOP
@@ -334,7 +355,8 @@ if __name__ == "__main__":
             config_candidati = json.load(f)
             
         inizio_elaborazione = time.time()
-        risultati_proiettati = elabora_proiezioni(df_storico, config_candidati)
+        # Modificato l'unpacking per ricevere anche i metadati di controllo
+        risultati_proiettati, info_cnt = elabora_proiezioni(df_storico, config_candidati)
         fine_elaborazione = time.time()
         
         print("\n========================================================")
@@ -346,3 +368,26 @@ if __name__ == "__main__":
         for cand, percentuale in classifica:
             print(f"  {cand.ljust(30)}: {percentuale:.2f}%")
         print("========================================================")
+        
+        # --------------------------------------------------------
+        # INIEZIONE FUNZIONE DI ESPORTAZIONE (PUNTO 1)
+        # --------------------------------------------------------
+        # Mappiamo lo swing calcolato dal modello sui singoli candidati per blocchi di appartenenza
+        mappa_blocchi = config_candidati.get("mappatura_storica", {})
+        swing_per_candidato = {}
+        for c in risultati_proiettati.keys():
+            tipo_blocco = mappa_blocchi.get(c, {}).get('tipo_blocco', '')
+            if 'cdx' in tipo_blocco:
+                swing_per_candidato[c] = info_cnt["swing_globale_cdx_2025"]
+            elif 'csx' in tipo_blocco:
+                swing_per_candidato[c] = info_cnt["swing_globale_csx_2025"]
+            else:
+                swing_per_candidato[c] = 0.0
+        
+        # Lancio l'esportazione verso la dashboard
+        esporta_dati_dashboard(
+            sezioni_pervenute=info_cnt["sezioni_pervenute"],
+            totale_sezioni=info_cnt["totale_sezioni"],
+            stime_candidati=risultati_proiettati,
+            swing_candidati=swing_per_candidato
+        )
