@@ -1,5 +1,11 @@
+# Ambiente virtuale Mac
 venv/
 .DS_Store
-__pycache__/
-*.pyc
-.vscode/
+
+# File di runtime e dati dinamici dello spoglio
+*.json
+storico/
+!candidati_config.json
+
+# Se vuoi escludere il foglio excel con lo storico delle scorse elezioni
+# storico_elezioni.xlsx
