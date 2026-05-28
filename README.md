@@ -1,53 +1,60 @@
 # Elettorando 2026 🗳️
 
-Sistema di scrutinio predittivo e proiezione statistica in tempo reale per le elezioni comunali di Venezia (24-25 Maggio 2026). Il modello elabora lo *swing* basandosi sullo storico elettorale e sul flusso parziale delle sezioni pervenute.
-
-## 🛠️ Architettura del Progetto
-
-Il sistema è strutturato in tre componenti macro, interconnessi tramite un flusso automatico di esportazione e sincronizzazione:
-
-[ Python Engine ] ➔ genera ➔ [ dati_dashboard.json ] & [ storico/ ]
-│
-upload.sh (lftp)
-▼
-[ Server Remoto ] ➔ esegue ➔ [ index.php ] (Dashboard Frontend)
-
-
-1. **Codice di Elaborazione (`elaboratore.py`)**
-   * Script in Python eseguito in ambiente virtuale (`venv`) su macchina locale.
-   * Calcola le stime analitiche e l'attendibilità statistica logistica.
-   * Esporta ciclicamente il file live `dati_dashboard.json` e archivia i progressivi storici con timestamp nella cartella locale `storico/`.
-
-2. **Script di Sincronizzazione (`upload.sh`)**
-   * Script Bash basato su `lftp`.
-   * Gestisce il trasferimento in background dei dati sul server remoto.
-   * Esegue il mirror automatico della cartella di storicizzazione ignorando eventuali assenze locali (`--ignore-missing-local`).
-
-3. **Interfaccia Web (`index.php`)**
-   * Dashboard frontend reattiva con componenti Tailwind CSS e Material Icons.
-   * **Polling Automatico:** Sincronizzazione live ogni 30 secondi dal file JSON principale.
-   * **Quorum Minimo:** Dispone di una barriera di sicurezza algoritmica che congela la visualizzazione dei grafici e mostra una schermata di attesa fino al raggiungimento di almeno **5 sezioni pervenute**.
-   * **Navigazione Temporale:** Menu laterale (Archivio Storico) generato dinamicamente in PHP che permette di consultare i vecchi snapshot disattivando temporaneamente il live.
+Elettorando è un motore di calcolo statistico e proiezione geopolitica progettato per interpretare il flusso dei dati in tempo reale (Live Spoglio) delle elezioni comunali di Venezia del 24-25 maggio 2026. L'obiettivo del sistema è superare la distorsione ottica causata dall'afflusso asincrono dei primi dati sezionali, fornendo una proiezione stabilizzata, pesata e affidabile del risultato finale cittadino.
 
 ---
 
-## 🚀 Linee Guida Operative per lo Spoglio (Lunedì)
+## 🚀 Novità ed Evoluzione dell'Architettura (Maggio 2026)
 
-### 1. Setup Ambiente Locale
-Assicurarsi che l'ambiente virtuale Python sia attivo e che la cartella storico esista sul file system:
+Il sistema è stato potenziato con un'architettura di **Backtesting e Simulazione Locale** che permette di stressare il modello e la dashboard simulando l'andamento reale dello spoglio senza sovraccaricare i server del Comune:
+1. **Download Una Tantum (`scarica_tutto.py`)**: Estrae massivamente via thread concorrenti i dati definitivi di tutte le 254 sezioni, storicizzandoli in un database locale (`database_voti_reali_finiti.json`).
+2. **Simulatore Nativo Incrementale (`elaboratore.py`)**: Popola incrementalmente il database live iniettando blocchi casuali di 20 sezioni inedite alla volta ogni 20 secondi, calcolando l'evoluzione delle stime e salvando gli snapshot temporali in `storico/`.
+3. **Bypass del Controllo Remoto**: Introdotta la modalità isolata (`modalita_simulazione=True`) per inibire le chiamate HTTP e analizzare lo spoglio differenziale basandosi esclusivamente sui dati parziali accumulati.
+4. **Interfaccia Dinamica Ottimizzata**: La dashboard (`index.php`) è stata aggiornata con una Sidebar d'archivio dotata di scorrimento verticale dinamico (`overflow-y-auto`) e pulsante di riallineamento "Live" ancorato in modalità `sticky`.
+
+---
+
+## 📐 L'Algoritmo di Calcolo: Proiezione Differenziale dello Swing
+
+Il cuore di *Elettorando* non si limita a fare una media ponderata dei voti scrutinati, poiché i primi seggi a chiudere lo spoglio (es. le sezioni storicamente sbilanciate o i seggi insulari minori) potrebbero alterare artificialmente la percezione del risultato globale. 
+
+Il modello applica un'**estrapolazione differenziale dello swing** basata sul confronto con lo storico politico del territorio.
+
+### Il Modello Matematico e Logico
+
+1. **Allineamento Geopolitico Lineare**:
+   In fase di caricamento, ogni singola sezione di Venezia viene mappata combinando i propri dati attuali con i dati delle precedenti elezioni omologhe (memorizzati in `storico_elezioni.xlsx`). I candidati del 2026 sono associati ai rispettivi blocchi storici di riferimento (es. Centrodestra `cdx`, Centrosinistra `csx`).
+
+2. **Calcolo dello Swing Parziale Live**:
+   Per ogni sezione $s$ in cui lo scrutinio è concluso (stato = 1), l'algoritmo calcola lo *scostamento* (lo *swing*) tra la percentuale attuale e la percentuale storica della coalizione di riferimento:
+   $$\Delta_{\text{coalizione}, s} = \%_{\text{Live}, s} - \%_{\text{Storica}, s}$$
+
+3. **Stabilizzazione del Dato (Filtro Massivo Comunale)**:
+   Gli swing delle singole sezioni pervenute vengono aggregati a livello macro, calcolando lo **swing medio globale** delle coalizioni principali (pesato sui voti validi per limitare il rumore statistico dei seggi piccolissimi):
+   $$\text{Swing\_Globale}_{\text{coalizione}} = \frac{\sum_{s \in \text{Pervenite}} \Delta_{\text{coalizione}, s} \cdot \text{Voti\_Validi}_s}{\sum_{s \in \text{Pervenite}} \text{Voti\_Validi}_s}$$
+
+4. **Proiezione Predittiva sulle Sezioni Mancanti**:
+   Qui risiede il potere predittivo del motore. Per tutte le sezioni non ancora pervenute (il restante dello spoglio), il modello **non assegna lo zero**, ma ipotizza che in quelle sezioni l'elettorato si comporterà seguendo lo storico del 2025, *corretto però dallo swing globale registrato fino a quel momento*:
+   $$\%_{\text{Proiettata}, u} = \%_{\text{Storica}, u} + \text{Swing\_Globale}_{\text{coalizione}}$$
+
+5. **Riorchesstrazione e Normalizzazione**:
+   I voti proiettati teorici delle sezioni mancanti vengono sommati ai voti reali scrutinati delle sezioni pervenute. Il totale complessivo viene infine normalizzato a base 100 distribuendo le frazioni residue sugli 8 candidati sindaco, restituendo la **Stima Proiettata Finale** visibile nella dashboard.
+
+6. **Attendibilità Statistica**:
+   L'indice di attendibilità espresso in percentuale sale linearmente all'aumentare del numero di seggi pervenuti e della stabilità dello swing globale. Al di sotto delle **5 sezioni**, il sistema attiva un blocco di sicurezza sulla UI in quanto la varianza statistica dello swing è troppo elevata per elaborare una proiezione scientificamente valida.
+
+---
+
+## 🛠️ Flusso d'Esecuzione per la Simulazione
+
+Per avviare un intero ciclo di simulazione e analizzare il comportamento dinamico del modello e del front-end, esegui in sequenza dal terminale del Mac:
+
 ```bash
+# 1. Attiva l'ambiente virtuale
 source venv/bin/activate
-mkdir -p storico
-2. Avvio del Flusso
-Eseguire il core del modello predittivo:
 
-Bash
-python elaboratore_2.py
-3. Allineamento Repository (Git)
-A fine operazioni o in caso di modifiche al codice della dashboard, sincronizzare il codice su GitHub:
+# 2. Scarica i dati reali definitivi dal Comune (Una tantum)
+python scarica_tutto.py
 
-Bash
-git add .
-git commit -m "Fix: ottimizzazione logica di storicizzazione in index.php"
-git push origin main
-Sviluppato da pcc soft. Licenza libera da vincoli di riproduzione.
+# 3. Avvia il motore in modalità simulazione backtest
+python elaboratore.py
