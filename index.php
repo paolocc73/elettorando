@@ -214,7 +214,7 @@
             <a href="https://github.com/paolocc73/elettorando" target="_blank" class="hover:text-indigo-600 transition inline-flex items-center gap-1 underline decoration-slate-300 decoration-wavy">
                 Copyleft 2026 pcc soft
             </a> 
-            • Tutti i diritti di riproduzione e modifica sono liberi. Il codice sorgente è nel <a href="https://github.com/paolocc73/elettorando">GitHub di Paolo Cotti Cometti</a>
+            • Tutti i diritti di riproduzione e modifica sono liberi. Il codice sorgente è nel <a target="_blank" href="https://github.com/paolocc73/elettorando" style="font-weight:bold">GitHub di Paolo Cotti Cometti</a>
         </p>
     </footer>
 
