@@ -41,13 +41,14 @@
     </header>
 
     <!-- ARCHIVIO SIDEBAR -->
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out z-50 border-r border-slate-200 pt-24">
-        <div class="px-5 mb-4 flex justify-between items-center">
+<div id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out z-50 border-r border-slate-200 pt-24 flex flex-col">
+        <div class="px-5 mb-4 flex justify-between items-center shrink-0">
             <h2 class="font-bold text-lg text-slate-800 tracking-tight">Archivio Storico Previsioni</h2>
             <button onclick="toggleMenu()" class="p-1 hover:bg-slate-100 rounded-full cursor-pointer"><span class="material-icons-round">close</span></button>
         </div>
-        <nav class="space-y-1.5 px-3">
-            <a href="index.php" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm">
+        
+        <nav class="space-y-1.5 px-3 pb-6 overflow-y-auto flex-grow max-h-[calc(100vh-140px)] select-none">
+            <a href="index.php" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-sm sticky top-0 bg-white z-10 shadow-xs mb-2">
                 <span class="flex items-center gap-2"><span class="material-icons-round text-base">analytics</span>Previsione Attuale</span>
                 <span class="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Live</span>
             </a>
@@ -179,7 +180,7 @@
                         <tr class="text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/40 border-b border-slate-100">
                             <th class="p-4 pl-6">Candidato Sindaco</th>
                             <th class="p-4 text-right">Stima Proiettata</th>
-                            <th class="p-4 text-right pr-6">Swing Live (vs Storico)</th>
+                            <!--<th class="p-4 text-right pr-6">Swing Live (vs Storico)</th> -->
                         </tr>
                     </thead>
                     <tbody id="tabella-corpo" class="divide-y divide-slate-100 text-sm font-medium">
@@ -308,7 +309,7 @@ function aggiornaInterfacciaGrafica(dati) {
             <tr class="hover:bg-slate-50/50 transition">
                 <td class="p-4 pl-6 font-bold text-slate-900">${cand.candidato}</td>
                 <td class="p-4 text-right font-black text-slate-900 text-base">${cand.percentuale_stata.toFixed(2)}%</td>
-                <td class="p-4 text-right pr-6 ${coloreSwing} text-xs font-bold">${testoSwing}</td>
+                <!--<td class="p-4 text-right pr-6 ${coloreSwing} text-xs font-bold">${testoSwing}</td>-->
             </tr>
         `;
         cuerpoTabella.innerHTML += riga;
