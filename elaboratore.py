@@ -204,7 +204,7 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
 # ==========================================
 # 3. MOTORE DI CALCOLO E PROIEZIONE VARIABILE
 # ==========================================
-def elabora_proiezioni(df_storico, configurazione_candidati):
+def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazione=False):
     mappa_config = configurazione_candidati.get("mappatura_storica", {})
     candidati_2026 = list(configurazione_candidati.get("candidati_2026", {}).keys())
     
@@ -215,29 +215,33 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
             try: database_voti_live = json.load(f)
             except: pass
 
-    sezioni_mutate, stato_totale_semaforo = analizza_semaforo_e_scopri_variazioni()
-    
-    if sezioni_mutate:
-        print(f"🔄 Rilevate {len(sezioni_mutate)} sezioni con NUOVI dati rispetto all'ultimo controllo.")
-        print(f"Avvio scaricamento mirato dei soli seggi variati...")
+    # ---- MODIFICA QUI: Salta il controllo web se siamo in simulazione ----
+    if not modalita_simulazione:
+        sezioni_mutate, stato_totale_semaforo = analizza_semaforo_e_scopri_variazioni()
         
-        dati_nuovi = {}
-        with ThreadPoolExecutor(max_workers=15) as executor:
-            futuri = {executor.submit(estrai_dati_sezione, sez): sez for sez in sezioni_mutate}
-            for futuro in futuri:
-                sez = futuri[futuro]
-                try:
-                    res = futuro.result()
-                    if res and sum(res.values()) > 0:
-                        dati_nuovi[str(sez)] = res
-                except:
-                    pass
-        
-        database_voti_live.update(dati_nuovi)
-        with open(DATABASE_LIVE_FILE, 'w') as f:
-            json.dump(database_voti_live, f, indent=4)
+        if sezioni_mutate:
+            print(f"🔄 Rilevate {len(sezioni_mutate)} sezioni con NUOVI dati rispetto all'ultimo controllo.")
+            print(f"Avvio scaricamento mirato dei soli seggi variati...")
+            
+            dati_nuovi = {}
+            with ThreadPoolExecutor(max_workers=15) as executor:
+                futuri = {executor.submit(estrai_dati_sezione, sez): sez for sez in sezioni_mutate}
+                for futuro in futuri:
+                    sez = futuri[futuro]
+                    try:
+                        res = futuro.result()
+                        if res and sum(res.values()) > 0:
+                            dati_nuovi[str(sez)] = res
+                    except:
+                        pass
+            
+            database_voti_live.update(dati_nuovi)
+            with open(DATABASE_LIVE_FILE, 'w') as f:
+                json.dump(database_voti_live, f, indent=4)
     else:
-        print("☕ Nessuna variazione rilevata nei seggi. Uso i dati pronti in memoria.")
+        # In simulazione stampiamo solo un log pulito senza toccare internet
+        pass
+    # ---------------------------------------------------------------------
 
     for c in candidati_2026:
         df_storico[f'voti_live_{c}'] = 0
@@ -376,32 +380,80 @@ def elabora_proiezioni(df_storico, configurazione_candidati):
 # 4. MAIN LOOP
 # ==========================================
 if __name__ == "__main__":
-    print("=== ELETTORANDO 2026: MOTORE DI PROIEZIONE DIFFERENZIALE ===")
-    df_storico = carica_e_prepara_storico("storico_elezioni.xlsx")
+    print("=== ELETTORANDO 2026: MOTORE DI PROIEZIONE DIFFERENZIALE REALE (MODALITÀ SIMULAZIONE BACKTEST) ===")
     
-    if os.path.exists('candidati_config.json'):
-        with open('candidati_config.json', 'r', encoding='utf-8') as f:
-            config_candidati = json.load(f)
+    FILE_COMPLETO = "database_voti_reali_finiti.json"
+    if not os.path.exists(FILE_COMPLETO):
+        print(f"❌ Errore: manca il file {FILE_COMPLETO}. Esegui prima 'python scarica_tutto.py'.")
+        exit(1)
+        
+    # Carichiamo lo storico "master" una volta sola
+    df_storico_master = carica_e_prepara_storico("storico_elezioni.xlsx")
+    with open('candidati_config.json', 'r', encoding='utf-8') as f:
+        config_candidati = json.load(f)
+        
+    # Leggiamo i dati reali totali
+    with open(FILE_COMPLETO, 'r') as f:
+        database_reale_totale = json.load(f)
+        
+    # Creiamo la lista di tutte le sezioni disponibili e la mescoliamo
+    lista_sezioni_totale = list(database_reale_totale.keys())
+    random.shuffle(lista_sezioni_totale)
+    
+    # ----------------------------------------------------
+    # RESET INIZIALE COMPLETO DI TUTTI I FILE SUL DISCO
+    # ----------------------------------------------------
+    with open("database_voti_live.json", 'w') as f:
+        json.dump({}, f)
+        
+    confronto_sezioni = {str(k): {"voti": 0, "stato": -1} for k in lista_sezioni_totale}
+    with open(CACHE_SEZIONI_FILE, 'w') as f:
+        json.dump(confronto_sezioni, f, indent=4)
+        
+    dimensione_blocco = 20
+    totale_sezioni = len(lista_sezioni_totale)
+    indice_corrente = 0
+    
+    print(f"🎲 Ordine casuale generato per {totale_sezioni} sezioni totali.")
+    print("🎬 Avvio del ciclo continuo con RESET dei DataFrame a ogni blocco...")
+    
+    while indice_corrente < totale_sezioni:
+        # Estraiamo le prossime 20 sezioni
+        blocco_corrente = lista_sezioni_totale[indice_corrente : indice_corrente + dimensione_blocco]
+        indice_corrente += dimensione_blocco
+        
+        print(f"\n📥 Iniezione blocco simulato: +{len(blocco_corrente)} nuove sezioni. Progressivo: {min(indice_corrente, totale_sezioni)}/{totale_sezioni}")
+        
+        # Leggiamo lo stato attuale dei file su disco per fare l'append corretto
+        with open("database_voti_live.json", 'r') as f:
+            live_voti = json.load(f)
+        with open(CACHE_SEZIONI_FILE, 'r') as f:
+            live_semaforo = json.load(f)
             
-        inizio_elaborazione = time.time()
-        # Modificato l'unpacking per ricevere anche i metadati di controllo
-        risultati_proiettati, info_cnt = elabora_proiezioni(df_storico, config_candidati)
-        fine_elaborazione = time.time()
+        for id_sez in blocco_corrente:
+            voti_veri = database_reale_totale[id_sez]
+            live_voti[id_sez] = voti_veri
+            live_semaforo[id_sez] = {"voti": sum(voti_veri.values()), "stato": 1}
+            
+        # Riscriviamo i file locali aggiornati (ora contengono SOLO le sezioni fino a questo blocco)
+        with open("database_voti_live.json", 'w') as f:
+            json.dump(live_voti, f, indent=4)
+        with open(CACHE_SEZIONI_FILE, 'w') as f:
+            json.dump(live_semaforo, f, indent=4)
+            
+        # ----------------------------------------------------
+        # IL TRUCCO: COPIA PULITA DEL DATAFRAME STORICO
+        # ----------------------------------------------------
+        # Generiamo una copia fresca del df_storico così che non si ricordi 
+        # delle sezioni marcate nei cicli precedenti o nei run passati
+        df_storico_corrente = df_storico_master.copy()
         
-        print("\n========================================================")
-        print("   PROIEZIONE RISULTATI FINALI STIMATI (60% 2025 - 40% 2020)")
-        print(f"   Tempo di calcolo loop: {fine_elaborazione - inizio_elaborazione:.4f} secondi")
-        print("========================================================")
+        # Inibiamo temporaneamente il controllo web forzando il simulatore a non scaricare nulla
+        # Eseguiamo il calcolo passando la copia pulita e forzando la simulazione locale
+        inizio_loop = time.time()
+        risultati_proiettati, info_cnt = elabora_proiezioni(df_storico_corrente, config_candidati, modalita_simulazione=True)
         
-        classifica = sorted(risultati_proiettati.items(), key=lambda x: x[1], reverse=True)
-        for cand, percentuale in classifica:
-            print(f"  {cand.ljust(30)}: {percentuale:.2f}%")
-        print("========================================================")
-        
-        # --------------------------------------------------------
-        # INIEZIONE FUNZIONE DI ESPORTAZIONE (PUNTO 1)
-        # --------------------------------------------------------
-        # Mappiamo lo swing calcolato dal modello sui singoli candidati per blocchi di appartenenza
+        # Mappatura dello swing per la dashboard
         mappa_blocchi = config_candidati.get("mappatura_storica", {})
         swing_per_candidato = {}
         for c in risultati_proiettati.keys():
@@ -412,23 +464,27 @@ if __name__ == "__main__":
                 swing_per_candidato[c] = info_cnt["swing_globale_csx_2025"]
             else:
                 swing_per_candidato[c] = 0.0
-        
-        # Lancio l'esportazione verso la dashboard
+                
+        # Esporta il file temporaneo e lo snapshot parziale effettivo
         esporta_dati_dashboard(
-            sezioni_pervenute=info_cnt["sezioni_pervenute"],
+            sezioni_pervenute=info_cnt["sezioni_pervenute"], # Sarà dinamicamente 20, 40, 60...
             totale_sezioni=info_cnt["totale_sezioni"],
             stime_candidati=risultati_proiettati,
             swing_candidati=swing_per_candidato
         )
         
-        # --------------------------------------------------------
-        # AUTOMAZIONE UPLOAD CON LFTP
-        # --------------------------------------------------------
+        tempo_calcolo = time.time() - inizio_loop
+        print(f"📊 Calcolato parziale per {info_cnt['sezioni_pervenute']}/{totale_sezioni} sezioni in {tempo_calcolo:.4f} secondi.")
+        
+        # Sincronizza il JSON parziale sul server remoto
         print("📤 Avvio trasferimento dati sul server remoto...")
         try:
-            # Esegue lo script bash creato in precedenza
             subprocess.run(["./upload.sh"], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"⚠️ Errore durante l'esecuzione di upload.sh: {e}")
-        except Exception as e:
-            print(f"⚠️ Impossibile avviare lo script di upload: {e}")
+        except subprocess.CalledProcessError:
+            print("⚠️ Nota: Mancato caricamento FTP di questo blocco.")
+            
+        if indice_corrente < totale_sezioni:
+            print("💤 Attesa di 20 secondi prima del prossimo afflusso...")
+            time.sleep(20)
+
+    print("\n🏁 SIMULAZIONE COMPLETATA CON DATI PARZIALI CORRETTI.")
