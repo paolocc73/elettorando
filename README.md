@@ -25,19 +25,24 @@ Il modello applica un'**estrapolazione differenziale dello swing** basata sul co
 1. **Allineamento Geopolitico Lineare**: In fase di caricamento, ogni singola sezione di Venezia viene mappata combinando i propri dati attuali con i dati delle precedenti elezioni omologhe (memorizzati in `storico_elezioni.xlsx`). I candidati del 2026 sono associati ai rispettivi blocchi storici di riferimento (es. Centrodestra `cdx`, Centrosinistra `csx`).
 
 2. **Calcolo dello Swing Parziale Live**: Per ogni sezione $s$ in cui lo scrutinio è concluso (stato = 1), l'algoritmo calcola lo *scostamento* (lo *swing*) tra la percentuale attuale e la percentuale storica della coalizione di riferimento:
-   ```math
-   \Delta_{\text{coalizione}, s} = \%_{\text{Live}, s} - \%_{\text{Storica}, s}
 
-3. **Stabilizzazione del Dato (Filtro Massivo Comunale)**:
-   Gli swing delle singole sezioni pervenute vengono aggregati a livello macro, calcolando lo **swing medio globale** delle coalizioni principali (pesato sui voti validi per limitare il rumore statistico dei seggi piccolissimi):
-   $$\text{Swing\_Globale}_{\text{coalizione}} = \frac{\sum_{s \in \text{Pervenite}} \Delta_{\text{coalizione}, s} \cdot \text{Voti\_Validi}_s}{\sum_{s \in \text{Pervenite}} \text{Voti\_Validi}_s}$$
+```math
+\\Delta_{\\text{coalizione}, s} = \\text{Pct}_{\\text{Live}, s} - \\text{Pct}_{\\text{Storica}, s}
+```
+
+3. **Stabilizzazione del Dato (Filtro Massivo Comunale)**: Gli swing delle singole sezioni pervenute vengono aggregati a livello macro, calcolando lo **swing medio globale** delle coalizioni principali (pesato sui voti validi per limitare il rumore statistico dei seggi piccolissimi):
+
+```math
+\\text{Swing\\_Globale}_{\\text{coalizione}} = \\frac{\\sum_{s \\in \\text{Pervenite}} \\Delta_{\\text{coalizione}, s} \\cdot \\text{Voti\\_Validi}_s}{\\sum_{s \\in \\text{Pervenite}} \\text{Voti\\_Validi}_s}
+```
 
 4. **Proiezione Predittiva sulle Sezioni Mancanti**: Qui risiede il potere predittivo del motore. Per tutte le sezioni non ancora pervenute (il restante dello spoglio), il modello **non assegna lo zero**, ma ipotizza che in quelle sezioni l'elettorato si comporterà seguendo lo storico del 2025, *corretto però dallo swing globale registrato fino a quel momento*:
-   ```math
-   \%_{\text{Proiettata}, u} = \%_{\text{Storica}, u} + \text{Swing\_Globale}_{\text{coalizione}}
 
-5. **Riorchesstrazione e Normalizzazione**:
-   I voti proiettati teorici delle sezioni mancanti vengono sommati ai voti reali scrutinati delle sezioni pervenute. Il totale complessivo viene infine normalizzato a base 100 distribuendo le frazioni residue sugli 8 candidati sindaco, restituendo la **Stima Proiettata Finale** visibile nella dashboard.
+```math
+\\text{Pct}_{\\text{Proiettata}, u} = \\text{Pct}_{\\text{Storica}, u} + \\text{Swing\\_Globale}_{\\text{coalizione}}
+```
+
+5. **Riorchestrazione e Normalizzazione**: I voti proiettati teorici delle sezioni mancanti vengono sommati ai voti reali scrutinati delle sezioni pervenute. Il totale complessivo viene infine normalizzato a base 100 distribuendo le frazioni residue sugli 8 candidati sindaco, restituendo la **Stima Proiettata Finale** visibile nella dashboard.
 
 6. **Attendibilità Statistica**:
    L'indice di attendibilità espresso in percentuale sale linearmente all'aumentare del numero di seggi pervenuti e della stabilità dello swing globale. Al di sotto delle **5 sezioni**, il sistema attiva un blocco di sicurezza sulla UI in quanto la varianza statistica dello swing è troppo elevata per elaborare una proiezione scientificamente valida.
