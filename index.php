@@ -107,6 +107,16 @@
                 </div>
             </div>
         </div>
+        
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-4.5">
+            <div class="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-1.5">
+                <span class="material-icons-round text-sm text-indigo-500">layers</span>
+                Dettaglio Lotto Simulato
+            </div>
+            <p id="cronaca-lotto" class="text-sm text-slate-700 font-mono leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 break-words">
+                In attesa del primo afflusso di sezioni...
+            </p>
+        </div>
 
         <!-- IL BOX DELLA "CALL" -->
         <div id="box-call" class="bg-linear-to-r from-red-600 to-red-700 text-white rounded-2xl shadow-md p-6 flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse hidden">
@@ -251,6 +261,15 @@ function aggiornaInterfacciaGrafica(dati) {
         if (bloccoSezioni) bloccoSezioni.classList.add('hidden');
     }
 
+    const cronacaLottoElement = document.getElementById('cronaca-lotto');
+    if (cronacaLottoElement) {
+        if (dati.scrutinio && dati.scrutinio.cronaca_lotto) {
+            cronacaLottoElement.innerText = dati.scrutinio.cronaca_lotto;
+        } else {
+            cronacaLottoElement.innerText = "Dettaglio sezioni non disponibile per questo snapshot.";
+        }
+    }
+    
     // Rendering standard dei dati reali
     document.getElementById('aggiornamento').innerHTML = `<span class="material-icons-round text-slate-400">calendar_today</span> Lunedì 25 Maggio 2026 — ${dati.ultimo_aggiornamento}`;
     document.getElementById('sottotitolo-sezioni').innerText = `Stima basata sul flusso di ${dati.scrutinio.sezioni_pervenute} sezioni su ${dati.scrutinio.totale_sezioni} (${dati.scrutinio.percentuale_completamento}%).`;

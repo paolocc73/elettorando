@@ -144,25 +144,29 @@ def estrai_dati_sezione(id_sezione):
 # ==========================================
 # NOVITÀ: FUNZIONE DI ESPORTAZIONE JSON DASHBOARD
 # ==========================================
-def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, swing_candidati, file_output="dati_dashboard.json"):
-    """Genera il file JSON strutturato con attendibilità statistica non lineare"""
+# ==========================================
+# AGGIORNATO: ESPORTAZIONE JSON CON TRACCIAMENTO LOTTI SIMULATI
+# ==========================================
+def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, swing_candidati, sezioni_lotto, primo_blocco, file_output="dati_dashboard.json"):
+    """Genera il file JSON strutturato con attendibilità statistica e elenco sezioni del lotto"""
     pct_scrutinio = (sezioni_pervenute / totale_sezioni) * 100 if totale_sezioni > 0 else 0
     
-    # Calcolo attendibilità non lineare (Curva Sigmoide)
-    # Al 10% di spoglio -> ~25% attendibilità
-    # Al 30% di spoglio -> ~73% attendibilità
-    # Al 50% di spoglio -> ~95% attendibilità
-    # Al 70% di spoglio -> ~99.5% attendibilità
     if pct_scrutinio == 0:
         attendibilita_modello = 0.0
     elif pct_scrutinio == 100:
         attendibilita_modello = 100.0
     else:
-        # Funzione logistica scalata tra 0 e 100
         attendibilita_modello = round(100 / (1 + np.exp(-0.1 * (pct_scrutinio - 20))), 2)
-        # Un piccolo safe check per evitare balzi strani all'inizio
         attendibilita_modello = max(round(pct_scrutinio, 2), attendibilita_modello)
         attendibilita_modello = min(100.0, attendibilita_modello)
+
+    # Ordinamento numerico delle sezioni per renderle leggibili a schermo
+    sezioni_ordinate = sorted([int(x) for x in sezioni_lotto])
+    stringa_sezioni = ", ".join(map(str, sezioni_ordinate))
+    
+    # Formattazione del testo in base al progresso dello spoglio simulato
+    etichetta_log = "Sezioni scrutinate" if primo_blocco else "Nuove sezioni scrutinate"
+    testo_cronaca = f"{etichetta_log}: {stringa_sezioni}"
 
     dati = {
         "ultimo_aggiornamento": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -170,7 +174,8 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
             "sezioni_pervenute": int(sezioni_pervenute),
             "totale_sezioni": int(totale_sezioni),
             "percentuale_completamento": round(pct_scrutinio, 2),
-            "attendibilita_statistica": round(attendibilita_modello, 2)  # <--- NUOVA CHIAVE
+            "attendibilita_statistica": round(attendibilita_modello, 2),
+            "cronaca_lotto": testo_cronaca  # <--- NUOVA CHIAVE PER IL FRONT-END
         },
         "stime_finali": [
             {
@@ -185,21 +190,21 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
     dati["stime_finali"] = sorted(dati["stime_finali"], key=lambda x: x["percentuale_stata"], reverse=True)
     
     try:
-        # 1. Scrittura del file principale per la dashboard live
         with open(file_output, 'w', encoding='utf-8') as f:
             json.dump(dati, f, indent=4, ensure_ascii=False)
         
-        # 2. STORICIZZAZIONE: Crea una copia numerata/temporale nella cartella 'storico'
         os.makedirs("storico", exist_ok=True)
-        timestamp_file = time.strftime("%H%M%S") # Es: 154230 (ore, minuti, secondi)
+        timestamp_file = time.strftime("%H%M%S")
         file_storico = f"storico/snapshot_{timestamp_file}.json"
         
         with open(file_storico, 'w', encoding='utf-8') as f:
             json.dump(dati, f, indent=4, ensure_ascii=False)
             
         print(f"✅ Dashboard aggiornata ({attendibilita_modello}%). Snapshot storicizzato in '{file_storico}'.")
+        print(f"📝 {testo_cronaca}")
     except Exception as e:
         print(f"⚠️ Errore durante la scrittura dei file JSON: {e}")
+        
         
 # ==========================================
 # 3. MOTORE DI CALCOLO E PROIEZIONE VARIABILE
