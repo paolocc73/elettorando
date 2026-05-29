@@ -59,7 +59,6 @@ def analizza_semaforo_e_scopri_variazioni():
     timestamp = int(time.time() * 1000)
     url_semaforo = f"https://elezioni.comune.venezia.it/data/json/ComunaliCoalizioni.json?quando={timestamp}"
     
-    # Carichiamo la situazione precedente se esiste
     stato_precedente = {}
     if os.path.exists(CACHE_SEZIONI_FILE):
         with open(CACHE_SEZIONI_FILE, 'r') as f:
@@ -87,8 +86,6 @@ def analizza_semaforo_e_scopri_variazioni():
                         num_voti = 0
                     
                     stato = prop.get('STATO', 0)
-                    
-                    # Salviamo l'impronta di questa sezione per il prossimo controllo
                     stato_corrente[id_sez_str] = {"voti": num_voti, "stato": stato}
                     
                     if id_sez_str not in stato_precedente:
@@ -100,10 +97,8 @@ def analizza_semaforo_e_scopri_variazioni():
                             if num_voti > 0 or str(stato) == "-1":
                                 sezioni_da_aggiornare.append(int(id_sez))
                                 
-            # Aggiorna il file di cache sul disco
             with open(CACHE_SEZIONI_FILE, 'w') as f:
                 json.dump(stato_corrente, f, indent=4)
-                
         else:
             print(f"⚠️ Errore lettura semaforo: {risposta.status_code}")
     except Exception as e:
@@ -142,10 +137,7 @@ def estrai_dati_sezione(id_sezione):
         return None
 
 # ==========================================
-# NOVITÀ: FUNZIONE DI ESPORTAZIONE JSON DASHBOARD
-# ==========================================
-# ==========================================
-# AGGIORNATO: ESPORTAZIONE JSON CON TRACCIAMENTO LOTTI SIMULATI
+# ESPORTAZIONE JSON CON TRACCIAMENTO LOTTI SIMULATI
 # ==========================================
 def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, swing_candidati, sezioni_lotto, primo_blocco, file_output="dati_dashboard.json"):
     """Genera il file JSON strutturato con attendibilità statistica e elenco sezioni del lotto"""
@@ -175,7 +167,7 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
             "totale_sezioni": int(totale_sezioni),
             "percentuale_completamento": round(pct_scrutinio, 2),
             "attendibilita_statistica": round(attendibilita_modello, 2),
-            "cronaca_lotto": testo_cronaca  # <--- NUOVA CHIAVE PER IL FRONT-END
+            "cronaca_lotto": testo_cronaca
         },
         "stime_finali": [
             {
@@ -205,7 +197,6 @@ def esporta_dati_dashboard(sezioni_pervenute, totale_sezioni, stime_candidati, s
     except Exception as e:
         print(f"⚠️ Errore durante la scrittura dei file JSON: {e}")
         
-        
 # ==========================================
 # 3. MOTORE DI CALCOLO E PROIEZIONE VARIABILE
 # ==========================================
@@ -220,7 +211,7 @@ def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazion
             try: database_voti_live = json.load(f)
             except: pass
 
-    # ---- MODIFICA QUI: Salta il controllo web se siamo in simulazione ----
+    # Salta il controllo web se siamo in simulazione
     if not modalita_simulazione:
         sezioni_mutate, stato_totale_semaforo = analizza_semaforo_e_scopri_variazioni()
         
@@ -244,9 +235,7 @@ def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazion
             with open(DATABASE_LIVE_FILE, 'w') as f:
                 json.dump(database_voti_live, f, indent=4)
     else:
-        # In simulazione stampiamo solo un log pulito senza toccare internet
         pass
-    # ---------------------------------------------------------------------
 
     for c in candidati_2026:
         df_storico[f'voti_live_{c}'] = 0
@@ -279,9 +268,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazion
     df_storico['swing_cdx_2025'] = df_storico['pct_cdx_live_2026'] - df_storico['pct_cdx_2025']
     df_storico['swing_csx_2025'] = df_storico['pct_csx_live_2026'] - df_storico['pct_csx_2025']
     
-    # ========================================================
-    # NUOVO MOTORE: SWING PESATO SULLA SIGNIFICATIVITÀ DELLE ROCCAFORTI
-    # ========================================================
     df_storico['peso_swing_sezione'] = 1.0
 
     if sezioni_pervenute_count > 0:
@@ -305,7 +291,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazion
         swing_globale_cdx_2020 = swing_globale_csx_2020 = 0.0
         swing_globale_cdx_2025 = swing_globale_csx_2025 = 0.0
 
-    # Calcolo lo Swing di Municipalità
     swing_muni = df_storico[df_storico['sezione_pervenuta']].groupby('Municipalità').agg(
         m_swing_cdx_2020=('swing_cdx_2020', 'mean'),
         m_swing_csx_2020=('swing_csx_2020', 'mean'),
@@ -320,9 +305,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazion
     df_storico['m_swing_cdx_2025'] = df_storico['m_swing_cdx_2025'].fillna(0.0)
     df_storico['m_swing_csx_2025'] = df_storico['m_swing_csx_2025'].fillna(0.0)
 
-    # ========================================================
-    # APPLICAZIONE DINAMICA DEI PESI STORICI (DAMPING FACTOR)
-    # ========================================================
     percentuale_scrutinio = sezioni_pervenute_count / len(df_storico)
     
     ATTENUAZIONE_2020 = max(0.0, 1.0 - (percentuale_scrutinio * 2.0))
@@ -371,7 +353,6 @@ def elabora_proiezioni(df_storico, configurazione_candidati, modalita_simulazion
         for c in proiezioni_candidati:
             proiezioni_candidati[c] = (proiezioni_candidati[c] / somma_pesi) * 100
             
-    # Restituiamo anche le variabili di controllo utili alla dashboard
     info_controllo = {
         "sezioni_pervenute": sezioni_pervenute_count,
         "totale_sezioni": len(df_storico),
@@ -392,22 +373,17 @@ if __name__ == "__main__":
         print(f"❌ Errore: manca il file {FILE_COMPLETO}. Esegui prima 'python scarica_tutto.py'.")
         exit(1)
         
-    # Carichiamo lo storico "master" una volta sola
     df_storico_master = carica_e_prepara_storico("storico_elezioni.xlsx")
     with open('candidati_config.json', 'r', encoding='utf-8') as f:
         config_candidati = json.load(f)
         
-    # Leggiamo i dati reali totali
     with open(FILE_COMPLETO, 'r') as f:
         database_reale_totale = json.load(f)
         
-    # Creiamo la lista di tutte le sezioni disponibili e la mescoliamo
     lista_sezioni_totale = list(database_reale_totale.keys())
     random.shuffle(lista_sezioni_totale)
     
-    # ----------------------------------------------------
-    # RESET INIZIALE COMPLETO DI TUTTI I FILE SUL DISCO
-    # ----------------------------------------------------
+    # Reset iniziale dei database locali
     with open("database_voti_live.json", 'w') as f:
         json.dump({}, f)
         
@@ -423,13 +399,11 @@ if __name__ == "__main__":
     print("🎬 Avvio del ciclo continuo con RESET dei DataFrame a ogni blocco...")
     
     while indice_corrente < totale_sezioni:
-        # Estraiamo le prossime 20 sezioni
         blocco_corrente = lista_sezioni_totale[indice_corrente : indice_corrente + dimensione_blocco]
         indice_corrente += dimensione_blocco
         
         print(f"\n📥 Iniezione blocco simulato: +{len(blocco_corrente)} nuove sezioni. Progressivo: {min(indice_corrente, totale_sezioni)}/{totale_sezioni}")
         
-        # Leggiamo lo stato attuale dei file su disco per fare l'append corretto
         with open("database_voti_live.json", 'r') as f:
             live_voti = json.load(f)
         with open(CACHE_SEZIONI_FILE, 'r') as f:
@@ -440,25 +414,16 @@ if __name__ == "__main__":
             live_voti[id_sez] = voti_veri
             live_semaforo[id_sez] = {"voti": sum(voti_veri.values()), "stato": 1}
             
-        # Riscriviamo i file locali aggiornati (ora contengono SOLO le sezioni fino a questo blocco)
         with open("database_voti_live.json", 'w') as f:
             json.dump(live_voti, f, indent=4)
         with open(CACHE_SEZIONI_FILE, 'w') as f:
             json.dump(live_semaforo, f, indent=4)
             
-        # ----------------------------------------------------
-        # IL TRUCCO: COPIA PULITA DEL DATAFRAME STORICO
-        # ----------------------------------------------------
-        # Generiamo una copia fresca del df_storico così che non si ricordi 
-        # delle sezioni marcate nei cicli precedenti o nei run passati
         df_storico_corrente = df_storico_master.copy()
         
-        # Inibiamo temporaneamente il controllo web forzando il simulatore a non scaricare nulla
-        # Eseguiamo il calcolo passando la copia pulita e forzando la simulazione locale
         inizio_loop = time.time()
         risultati_proiettati, info_cnt = elabora_proiezioni(df_storico_corrente, config_candidati, modalita_simulazione=True)
         
-        # Mappatura dello swing per la dashboard
         mappa_blocchi = config_candidati.get("mappatura_storica", {})
         swing_per_candidato = {}
         for c in risultati_proiettati.keys():
@@ -470,18 +435,22 @@ if __name__ == "__main__":
             else:
                 swing_per_candidato[c] = 0.0
                 
-        # Esporta il file temporaneo e lo snapshot parziale effettivo
+        # CAPITO SE SI TRATTA DEL PRIMO BLOCCO DEL CICLO
+        primo = (indice_corrente == dimensione_blocco)
+                
+        # AGGIORNATO: Passiamo correttamente i parametri richiesti per la cronaca dei lotti
         esporta_dati_dashboard(
-            sezioni_pervenute=info_cnt["sezioni_pervenute"], # Sarà dinamicamente 20, 40, 60...
+            sezioni_pervenute=info_cnt["sezioni_pervenute"],
             totale_sezioni=info_cnt["totale_sezioni"],
             stime_candidati=risultati_proiettati,
-            swing_candidati=swing_per_candidato
+            swing_candidati=swing_per_candidato,
+            sezioni_lotto=blocco_corrente,
+            primo_blocco=primo
         )
         
         tempo_calcolo = time.time() - inizio_loop
         print(f"📊 Calcolato parziale per {info_cnt['sezioni_pervenute']}/{totale_sezioni} sezioni in {tempo_calcolo:.4f} secondi.")
         
-        # Sincronizza il JSON parziale sul server remoto
         print("📤 Avvio trasferimento dati sul server remoto...")
         try:
             subprocess.run(["./upload.sh"], check=True)
