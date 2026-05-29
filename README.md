@@ -1,6 +1,6 @@
 # Elettorando 2026 🗳️
 
-Elettorando è un motore di calcolo statistico e proiezione geopolitica progettato per interpretare il flusso dei dati in tempo reale (Live Spoglio) delle elezioni comunali di Venezia del 24-25 maggio 2026. L'obiettivo del sistema è superare la distorsione ottica causata dall'afflusso asincrono dei primi dati sezionali, fornendo una proiezione stabilizzata, pesata e affidabile del risultato finale cittadino.
+Elettorando è un motore di calcolo statistico e proiezione geopolitica progettato da Paolo Cotti Cometti, con il supporto essenziale di Gemini, per interpretare il flusso dei dati in tempo reale (Live Spoglio) delle elezioni comunali di Venezia del 24-25 maggio 2026. L'obiettivo del sistema è superare la distorsione ottica causata dall'afflusso asincrono dei primi dati sezionali, fornendo una proiezione stabilizzata, pesata e affidabile del risultato finale cittadino.
 
 ---
 
